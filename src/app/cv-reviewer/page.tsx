@@ -4,8 +4,8 @@ import { useState } from 'react';
 import { reviewCV } from '../actions';
 import { 
   UploadCloud, XCircle, ArrowLeft, Loader2, 
-  Search, Wand2, Target, FileText, AlertTriangle, ChevronRight, Star, ListChecks, BarChart3,
-  Zap, ShieldCheck, FileCheck
+  Search, Wand2, Target, FileText, AlertTriangle, ChevronRight, ListChecks, BarChart3,
+  Zap, ShieldCheck
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -27,7 +27,6 @@ type PrioritizedAction = {
 };
 
 type CVReviewResult = {
-  score: number;
   executive_summary: string;
   ats_analysis?: {
     score?: number;
@@ -68,7 +67,7 @@ export default function CvReviewer() {
 
     try {
       const data = await reviewCV(formData);
-      if(data) setResult(data);
+      if (data) setResult(data as CVReviewResult);
       else alert("Gagal membaca CV. Pastikan format PDF teks.");
     } catch { alert("Terjadi kesalahan sistem."); } finally { setLoading(false); }
   };
@@ -119,7 +118,7 @@ export default function CvReviewer() {
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
               Upload CV Anda (PDF) dan biarkan AI kami memberikan penilaian yang jujur tanpa ampun. 
-              Mulai dari deteksi ATS, skor resume Harvard, hingga saran penulisan ulang secara instan.
+              Mulai dari deteksi ATS, analisis kualitas tiap section, hingga saran penulisan ulang secara instan.
             </p>
           </div>
         )}
@@ -127,7 +126,7 @@ export default function CvReviewer() {
         {/* INPUT SECTION */}
         <div className={`bg-white p-8 rounded-3xl border border-slate-200 shadow-xl shadow-slate-200/50 relative overflow-hidden group transition-all duration-300 ${!result ? 'transform hover:-translate-y-1 hover:border-blue-400 max-w-3xl mx-auto' : ''}`}>
           {!result && (
-            <div className="absolute top-0 inset-x-0 h-1 bg-gradient-to-r from-blue-500 via-purple-500 to-pink-500"></div>
+            <div className="absolute top-0 inset-x-0 h-1 bg-linear-to-r from-blue-500 via-purple-500 to-pink-500"></div>
           )}
           <input 
             type="file" 
@@ -199,20 +198,9 @@ export default function CvReviewer() {
           <div className="mt-10 space-y-8 animate-in fade-in slide-in-from-bottom-8 duration-700">
             
             {/* 1. DASHBOARD HEADER */}
-            <div className="grid md:grid-cols-12 gap-6">
-              {/* Score Gauge */}
-              <div className={`md:col-span-4 p-8 rounded-3xl border-2 flex flex-col items-center justify-center text-center relative overflow-hidden ${getScoreColor(result.score)}`}>
-                 <div className="relative z-10">
-                    <div className="text-xs font-bold uppercase tracking-widest opacity-70 mb-2">Harvard Score</div>
-                    <div className="text-7xl font-black mb-2">{result.score}</div>
-                    <div className="inline-flex items-center gap-1 bg-white/60 px-3 py-1 rounded-full text-sm font-bold backdrop-blur-sm">
-                       <Star size={14} fill="currentColor"/> Verdict: {result.score > 75 ? 'Excellent' : result.score > 50 ? 'Average' : 'Poor'}
-                    </div>
-                 </div>
-              </div>
-
+            <div className="grid gap-6">
               {/* Executive Summary */}
-              <div className="md:col-span-8 bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center relative">
+              <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm flex flex-col justify-center relative">
                 <Target className="text-slate-200 absolute top-6 right-6" size={64}/>
                 <h2 className="text-lg font-bold text-slate-800 mb-3 flex items-center gap-2">
                   <span className="w-2 h-8 bg-blue-600 rounded-full"></span> Executive Summary

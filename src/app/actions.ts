@@ -18,6 +18,67 @@ type InterviewMessage = {
   content: string;
 };
 
+type BuilderEducation = {
+  id: number;
+  school: string;
+  major: string;
+  gpa: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  description: string;
+};
+
+type BuilderExperience = {
+  id: number;
+  role: string;
+  company: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  description: string;
+};
+
+type BuilderProject = {
+  id: number;
+  name: string;
+  role: string;
+  startDate: string;
+  endDate: string;
+  description: string;
+};
+
+type BuilderAchievement = {
+  id: number;
+  name: string;
+  year: string;
+};
+
+type BuilderCustomSection = {
+  id: number;
+  title: string;
+  content: string;
+};
+
+type BuilderCvPayload = {
+  personalInfo: {
+    fullName: string;
+    email: string;
+    phone: string;
+    linkedin: string;
+    summary: string;
+  };
+  educations: BuilderEducation[];
+  experiences: BuilderExperience[];
+  projects: BuilderProject[];
+  achievements: BuilderAchievement[];
+  customSections: BuilderCustomSection[];
+  skills: {
+    hard: string;
+    soft: string;
+  };
+};
+
 const DEBUG_PDF_EXTRACTION = process.env.DEBUG_PDF_EXTRACTION === 'true';
 
 function logDebugPreview(label: string, value: string) {
@@ -31,8 +92,8 @@ function logDebugPreview(label: string, value: string) {
 function normalizeCvTextForLLM(text: string): string {
   return text
     .replace(/\r/g, '')
-    .replace(/-\n(?=[a-zA-Z])/g, '')
-    .replace(/([^\n])\n(?=[a-zA-Z0-9(])/g, '$1 ')
+    .replace(/-\n\s*(?=[a-zA-Z])/g, '')
+    .replace(/([^\n])\n\s*(?=[a-zA-Z0-9(])/g, '$1 ')
     .replace(/\n{3,}/g, '\n\n')
     .trim();
 }
@@ -82,6 +143,509 @@ async function parsePdfText(file: File): Promise<string> {
   });
 }
 
+const SUMMARY_HEADING_LINE_PATTERN = /^(?:professional\s+summary|summary|profile|about\s+me|objective|career\s+objective|ringkasan\s+profil|ringkasan|profil|tentang\s+saya|tujuan\s+karier)\s*[:\-]?$/i;
+const SUMMARY_HEADING_INLINE_PATTERN = /^(?:professional\s+summary|summary|profile|about\s+me|objective|career\s+objective|ringkasan\s+profil|ringkasan|profil|tentang\s+saya|tujuan\s+karier)\s*[:\-]\s*(.+)$/i;
+const GENERIC_SECTION_HEADING_PATTERN = /^(?:work\s+experience|experience|employment\s+history|projects?|education|skills?|certifications?|languages?|achievements?|awards?|organizations?|internships?|contact|riwayat\s+pekerjaan|pengalaman\s+kerja|proyek|pendidikan|keahlian|sertifikasi|bahasa|pencapaian|kontak)\s*[:\-]?$/i;
+const SUMMARY_SECTION_MARKER_PATTERN = /\b(?:experience|education|skills?|projects?|certifications?|languages?|achievements?|awards?|organizations?|internships?|contact|pengalaman|pendidikan|keahlian|proyek|sertifikasi|bahasa|pencapaian|kontak)\b/gi;
+const SUMMARY_MAX_CHARS = 1100;
+const SUMMARY_MIN_CHARS = 60;
+
+function cleanInlineText(value: string): string {
+  return value.replace(/\s+/g, ' ').trim();
+}
+
+function isLikelySectionHeading(line: string): boolean {
+  const normalized = line.trim();
+  if (!normalized) return false;
+  return SUMMARY_HEADING_LINE_PATTERN.test(normalized) || GENERIC_SECTION_HEADING_PATTERN.test(normalized);
+}
+
+function isLikelyContactParagraph(paragraph: string): boolean {
+  const lower = paragraph.toLowerCase();
+  const hasContactHint =
+    lower.includes('@') ||
+    lower.includes('linkedin') ||
+    lower.includes('github') ||
+    lower.includes('portfolio') ||
+    lower.includes('phone') ||
+    lower.includes('tel') ||
+    lower.includes('email');
+
+  return hasContactHint && paragraph.split(/\s+/).length <= 40;
+}
+
+function extractSummaryFromHeading(normalizedCvText: string): string | null {
+  const lines = normalizedCvText
+    .split('\n')
+    .map(line => line.trim())
+    .filter(Boolean);
+
+  let collecting = false;
+  const collected: string[] = [];
+
+  for (const line of lines) {
+    const inlineMatch = line.match(SUMMARY_HEADING_INLINE_PATTERN);
+    if (inlineMatch) {
+      collecting = true;
+      const inlineContent = cleanInlineText(inlineMatch[1] || '');
+      if (inlineContent) collected.push(inlineContent);
+      continue;
+    }
+
+    if (!collecting) {
+      if (SUMMARY_HEADING_LINE_PATTERN.test(line)) {
+        collecting = true;
+      }
+      continue;
+    }
+
+    if (isLikelySectionHeading(line) && !SUMMARY_HEADING_LINE_PATTERN.test(line)) {
+      break;
+    }
+
+    collected.push(line);
+  }
+
+  if (!collected.length) return null;
+
+  const summary = cleanInlineText(collected.join(' '));
+  if (summary.length < SUMMARY_MIN_CHARS || summary.length > SUMMARY_MAX_CHARS) return null;
+  return summary;
+}
+
+function extractSummaryFromTopParagraph(normalizedCvText: string): string | null {
+  const paragraphs = normalizedCvText
+    .split(/\n{2,}/)
+    .map(part => cleanInlineText(part))
+    .filter(Boolean)
+    .slice(0, 8);
+
+  for (const paragraph of paragraphs) {
+    if (paragraph.length < 120 || paragraph.length > SUMMARY_MAX_CHARS) continue;
+    if (isLikelyContactParagraph(paragraph)) continue;
+    if (isLikelySectionHeading(paragraph)) continue;
+
+    const sentenceCount = paragraph.split(/[.!?](?:\s|$)/).filter(Boolean).length;
+    const markerCount = (paragraph.match(SUMMARY_SECTION_MARKER_PATTERN) || []).length;
+    if (sentenceCount >= 2 && sentenceCount <= 6 && markerCount <= 2) return paragraph;
+  }
+
+  return null;
+}
+
+function extractSummaryCandidate(normalizedCvText: string): string | null {
+  return extractSummaryFromHeading(normalizedCvText) || extractSummaryFromTopParagraph(normalizedCvText);
+}
+
+function isSuspiciousSummary(summary: string): boolean {
+  const normalized = cleanInlineText(summary);
+  if (!normalized) return true;
+
+  const sentenceCount = normalized.split(/[.!?](?:\s|$)/).filter(Boolean).length;
+  const markerCount = (normalized.match(SUMMARY_SECTION_MARKER_PATTERN) || []).length;
+
+  return normalized.length > SUMMARY_MAX_CHARS || sentenceCount > 8 || markerCount >= 4;
+}
+
+function takeFirstSentences(text: string, maxSentences = 5): string {
+  const chunks = text.match(/[^.!?]+[.!?]?/g) || [text];
+  return cleanInlineText(chunks.slice(0, maxSentences).join(' '));
+}
+
+function asStringArray(value: unknown): string[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is string => typeof item === 'string')
+    .map(item => item.trim())
+    .filter(Boolean);
+}
+
+function asObject(value: unknown): Record<string, unknown> | null {
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return null;
+  return value as Record<string, unknown>;
+}
+
+function asObjectArray(value: unknown): Record<string, unknown>[] {
+  if (!Array.isArray(value)) return [];
+  return value
+    .filter((item): item is Record<string, unknown> => !!item && typeof item === 'object' && !Array.isArray(item));
+}
+
+function readString(obj: Record<string, unknown> | null, key: string): string {
+  if (!obj) return '';
+  const value = obj[key];
+  return typeof value === 'string' ? value.trim() : '';
+}
+
+function parseDateRange(period: string): { startDate: string; endDate: string; isCurrent: boolean } {
+  const normalized = period.replace(/\s+/g, ' ').trim();
+  if (!normalized) return { startDate: '', endDate: '', isCurrent: false };
+
+  const parts = normalized
+    .split(/\s*(?:-|–|—|to|until|s\/d|sd)\s*/i)
+    .map((part) => part.trim())
+    .filter(Boolean);
+
+  const rawEnd = parts.length >= 2 ? parts[parts.length - 1] : '';
+  const isCurrent = /^(?:present|current|now|sekarang)$/i.test(rawEnd) || /\b(?:present|current|now|sekarang)\b/i.test(normalized);
+
+  if (parts.length >= 2) {
+    return {
+      startDate: parts[0],
+      endDate: isCurrent ? '' : rawEnd,
+      isCurrent,
+    };
+  }
+
+  if (isCurrent) {
+    return {
+      startDate: normalized.replace(/\b(?:present|current|now|sekarang)\b/gi, '').replace(/[-–—]\s*$/g, '').trim(),
+      endDate: '',
+      isCurrent: true,
+    };
+  }
+
+  return { startDate: normalized, endDate: '', isCurrent: false };
+}
+
+function extractYear(value: string): string {
+  const match = value.match(/\b(19|20)\d{2}\b/);
+  return match ? match[0] : '';
+}
+
+function buildSourceSnippetsFallback(normalizedCvText: string, maxItems = 12): string[] {
+  const lines = normalizedCvText
+    .split('\n')
+    .map(line => cleanInlineText(line))
+    .filter(line => line.length >= 25)
+    .filter(line => !isLikelySectionHeading(line));
+
+  return Array.from(new Set(lines)).slice(0, maxItems);
+}
+
+function applyStructuredCvFallbacks(
+  structuredCv: Record<string, unknown>,
+  normalizedCvText: string,
+): Record<string, unknown> {
+  const patched: Record<string, unknown> = { ...structuredCv };
+
+  const summaryCandidate = extractSummaryCandidate(normalizedCvText);
+  const currentSummary = typeof patched.summary === 'string' ? patched.summary.trim() : '';
+  const hasSuspiciousCurrentSummary = !!currentSummary && isSuspiciousSummary(currentSummary);
+
+  if (summaryCandidate && !isSuspiciousSummary(summaryCandidate)) {
+    const isLikelyTruncated =
+      !currentSummary ||
+      currentSummary.length + 80 < summaryCandidate.length ||
+      currentSummary.length < Math.floor(summaryCandidate.length * 0.75) ||
+      hasSuspiciousCurrentSummary;
+
+    if (isLikelyTruncated) {
+      patched.summary = summaryCandidate;
+    }
+  } else if (hasSuspiciousCurrentSummary) {
+    const shortened = takeFirstSentences(currentSummary, 5);
+    if (shortened.length >= SUMMARY_MIN_CHARS && !isSuspiciousSummary(shortened)) {
+      patched.summary = shortened;
+    } else {
+      delete patched.summary;
+    }
+  }
+
+  const currentSnippets = asStringArray(patched.source_snippets);
+  if (currentSnippets.length < 6) {
+    const fallbackSnippets = buildSourceSnippetsFallback(normalizedCvText);
+    if (fallbackSnippets.length) {
+      patched.source_snippets = Array.from(new Set([...currentSnippets, ...fallbackSnippets])).slice(0, 12);
+    }
+  }
+
+  return patched;
+}
+
+function mapStructuredCvToBuilderPayload(structuredCv: Record<string, unknown>): BuilderCvPayload {
+  const profile = asObject(structuredCv.profile);
+  const profilePhone = asObject(profile?.phone);
+  const profileLinks = asStringArray(profile?.links);
+  const skillsObj = asObject(structuredCv.skills);
+
+  const hardSkills = [
+    ...asStringArray(skillsObj?.hard_skills),
+    ...asStringArray(skillsObj?.tools),
+  ];
+  const softSkills = asStringArray(skillsObj?.soft_skills);
+  const domainKnowledge = asStringArray(skillsObj?.domain_knowledge);
+
+  const educations: BuilderEducation[] = asObjectArray(structuredCv.education)
+    .map((item, index) => {
+      const period = readString(item, 'period');
+      const range = parseDateRange(period);
+      const details = asStringArray(item.details);
+
+      return {
+        id: index + 1,
+        school: readString(item, 'institution'),
+        major: readString(item, 'degree'),
+        gpa: readString(item, 'gpa'),
+        startDate: range.startDate,
+        endDate: range.endDate,
+        isCurrent: range.isCurrent,
+        description: details.join('\n'),
+      };
+    })
+    .filter((item) => item.school || item.major || item.description || item.startDate || item.endDate);
+
+  const experiences: BuilderExperience[] = asObjectArray(structuredCv.experience)
+    .map((item, index) => {
+      const period = readString(item, 'period');
+      const range = parseDateRange(period);
+      const achievements = asStringArray(item.achievements);
+      const description = achievements.length > 0 ? achievements.join('\n') : asStringArray(item.description).join('\n');
+
+      return {
+        id: index + 1,
+        role: readString(item, 'role'),
+        company: readString(item, 'company'),
+        startDate: range.startDate,
+        endDate: range.endDate,
+        isCurrent: range.isCurrent,
+        description,
+      };
+    })
+    .filter((item) => item.role || item.company || item.description || item.startDate || item.endDate);
+
+  const projects: BuilderProject[] = asObjectArray(structuredCv.projects)
+    .map((item, index) => {
+      const period = readString(item, 'period');
+      const range = parseDateRange(period);
+      const descriptionItems = asStringArray(item.description);
+
+      return {
+        id: index + 1,
+        name: readString(item, 'name'),
+        role: readString(item, 'role'),
+        startDate: range.startDate,
+        endDate: range.isCurrent ? 'Present' : range.endDate,
+        description: descriptionItems.join('\n'),
+      };
+    })
+    .filter((item) => item.name || item.role || item.description || item.startDate || item.endDate);
+
+  const achievements: BuilderAchievement[] = asStringArray(structuredCv.achievements)
+    .map((item, index) => ({
+      id: index + 1,
+      name: item,
+      year: extractYear(item),
+    }));
+
+  const languageItems = asObjectArray(structuredCv.languages)
+    .map((item) => {
+      const language = readString(item, 'language');
+      const proficiency = readString(item, 'proficiency');
+      if (!language) return '';
+      return proficiency ? `${language} (${proficiency})` : language;
+    })
+    .filter(Boolean);
+
+  const certificationItems = asStringArray(structuredCv.certifications);
+
+  const customSections: BuilderCustomSection[] = [];
+  let customId = 1;
+
+  if (languageItems.length > 0) {
+    customSections.push({
+      id: customId++,
+      title: 'Languages',
+      content: languageItems.join('\n'),
+    });
+  }
+
+  if (certificationItems.length > 0) {
+    customSections.push({
+      id: customId++,
+      title: 'Certifications',
+      content: certificationItems.join('\n'),
+    });
+  }
+
+  if (domainKnowledge.length > 0) {
+    customSections.push({
+      id: customId++,
+      title: 'Domain Knowledge',
+      content: domainKnowledge.join('\n'),
+    });
+  }
+
+  const linkedin = profileLinks.find((link) => /linkedin\.com/i.test(link)) || profileLinks[0] || '';
+  const phone = readString(profilePhone, 'normalized') || readString(profilePhone, 'raw') || readString(profile, 'phone');
+
+  return {
+    personalInfo: {
+      fullName: readString(profile, 'full_name'),
+      email: readString(profile, 'email'),
+      phone,
+      linkedin,
+      summary: typeof structuredCv.summary === 'string' ? structuredCv.summary.trim() : '',
+    },
+    educations,
+    experiences,
+    projects,
+    achievements,
+    customSections,
+    skills: {
+      hard: Array.from(new Set(hardSkills)).join(', '),
+      soft: Array.from(new Set(softSkills)).join(', '),
+    },
+  };
+}
+
+function stringifyPromptJson(data: Record<string, unknown>, maxChars = 12000): string {
+  const json = JSON.stringify(data, null, 2);
+  if (json.length <= maxChars) return json;
+
+  return `${json.slice(0, maxChars)}\n[TRUNCATED]`;
+}
+
+async function extractStructuredCvData(normalizedCvText: string): Promise<Record<string, unknown> | null> {
+  const systemPrompt = `You are a CV Data Structuring Engine.
+Your job is to convert raw CV text into clean, recruiter-friendly JSON that can be consumed by another AI.
+
+Return strict JSON object only (no markdown, no explanation).
+
+Extraction rules:
+- Extract only information explicitly present in the CV. Never hallucinate.
+- Keep original language for evidence text and sentence fragments.
+- Omit keys or fields that are not present in the CV.
+- Use arrays for repeated entities (experience, project, skills, education, etc).
+- Normalize keys using snake_case.
+- Preserve chronology and dates exactly as written when possible.
+- Do NOT paraphrase or shorten existing candidate text.
+- summary must only come from explicit summary/profile/about me/objective section.
+- summary must keep the full original paragraph from that summary section (verbatim), not an abbreviated version.
+- if no explicit summary section is present, omit the summary key.
+- never concatenate other sections (experience, education, skills, projects, etc) into summary.
+- For experience.achievements and projects.description, keep complete original bullets/sentences (verbatim) from CV when available.
+
+Expected structure guideline (adapt dynamically to available data):
+{
+  "detected_cv_language": "id|en|mixed|other",
+  "profile": {
+    "full_name": "string",
+    "email": "string",
+    "phone": {
+      "raw": "string",
+      "normalized": "string"
+    },
+    "location": "string",
+    "links": ["string"]
+  },
+  "summary": "string",
+  "experience": [
+    {
+      "role": "string",
+      "company": "string",
+      "period": "string",
+      "achievements": ["string"],
+      "technologies": ["string"]
+    }
+  ],
+  "projects": [
+    {
+      "name": "string",
+      "role": "string",
+      "period": "string",
+      "description": ["string"],
+      "technologies": ["string"]
+    }
+  ],
+  "skills": {
+    "hard_skills": ["string"],
+    "tools": ["string"],
+    "soft_skills": ["string"],
+    "domain_knowledge": ["string"]
+  },
+  "education": [
+    {
+      "institution": "string",
+      "degree": "string",
+      "period": "string",
+      "details": ["string"]
+    }
+  ],
+  "certifications": ["string"],
+  "languages": [
+    {
+      "language": "string",
+      "proficiency": "string"
+    }
+  ],
+  "achievements": ["string"],
+  "source_snippets": ["string"]
+}
+
+Important:
+- Keep detected_cv_language and source_snippets whenever possible.
+- source_snippets should contain 8-20 short verbatim lines/sentences from CV as evidence.
+- If profile is partially missing, include only available fields.
+- Never return null, undefined, or comments in JSON.`;
+
+  const chatCompletion = await groq.chat.completions.create({
+    messages: [
+      { role: 'system', content: systemPrompt },
+      { role: 'user', content: normalizedCvText.substring(0, 20000) },
+    ],
+    model: 'llama-3.3-70b-versatile',
+    temperature: 0,
+    response_format: { type: 'json_object' },
+  });
+
+  return parseJsonObject(chatCompletion.choices[0]?.message?.content);
+}
+
+async function buildStructuredCvFromFile(file: File): Promise<Record<string, unknown> | null> {
+  const cvText = await parsePdfText(file);
+  logDebugPreview('buildStructuredCvFromFile.cvText (raw extraction)', cvText);
+
+  if (!cvText || cvText.trim().length < 50) {
+    return null;
+  }
+
+  const normalizedCvText = normalizeCvTextForLLM(cvText);
+  logDebugPreview('buildStructuredCvFromFile.normalizedCvText (for structuring)', normalizedCvText);
+
+  const structuredCv = await extractStructuredCvData(normalizedCvText);
+  if (!structuredCv) {
+    return null;
+  }
+
+  const patchedStructuredCv = applyStructuredCvFallbacks(structuredCv, normalizedCvText);
+
+  logDebugPreview(
+    'buildStructuredCvFromFile.structuredCvJson (for downstream AI)',
+    stringifyPromptJson(patchedStructuredCv, 2500),
+  );
+
+  return patchedStructuredCv;
+}
+
+export async function extractCvToBuilderData(formData: FormData): Promise<BuilderCvPayload | null> {
+  const file = formData.get('file') as File;
+
+  if (!file) {
+    throw new Error('No file uploaded');
+  }
+
+  try {
+    const structuredCv = await buildStructuredCvFromFile(file);
+    if (!structuredCv) return null;
+
+    return mapStructuredCvToBuilderPayload(structuredCv);
+  } catch (error) {
+    console.error('Error extracting builder data from CV:', error);
+    return null;
+  }
+}
+
 // --- FUNGSI 1: POLISH TEXT ---
 export async function polishText(
   text: string,
@@ -125,18 +689,17 @@ export async function reviewCV(formData: FormData) {
   }
 
   try {
-    const cvText = await parsePdfText(file);
-    logDebugPreview('reviewCV.cvText (sent to AI)', cvText);
-
-    const normalizedCvText = normalizeCvTextForLLM(cvText);
-    logDebugPreview('reviewCV.normalizedCvText (sent to AI)', normalizedCvText);
-
-    if (!cvText || cvText.trim().length < 50) {
+    const structuredCv = await buildStructuredCvFromFile(file);
+    if (!structuredCv) {
       return null;
     }
 
+    const structuredCvPrompt = stringifyPromptJson(structuredCv);
+    const userContent = `=== STRUCTURED CANDIDATE CV JSON ===\n${structuredCvPrompt}`;
+    logDebugPreview('reviewCV.userContent (structured CV sent to AI)', userContent);
+
     const systemPrompt = `You are a Senior Technical Recruiter + Resume Coach.
-Analyze CV text deeply with ATS + recruiter lens and produce highly practical recommendations.
+Analyze structured CV JSON deeply with ATS + recruiter lens and produce highly practical recommendations.
 
 Evaluation framework:
 - Impact-driven writing (action verbs, metrics, business outcome)
@@ -147,7 +710,6 @@ Evaluation framework:
 
 You MUST return valid JSON with this EXACT structure:
 {
-  "score": 0, // 0-100 based on Harvard Standard
   "executive_summary": "string (in Indonesian)",
   "ats_analysis": {
     "score": 0, // 0-100 based on keyword presence and relevance
@@ -202,16 +764,16 @@ Language policy:
 Rules:
 - Always include all keys even if data is limited.
 - Provide exactly 5 prioritized_actions sorted from highest impact + lowest effort first.
-- Provide exactly 3 magic_rewrites when possible; minimum 2.
-- For magic_rewrites.original, quote one complete sentence/bullet from CV. Do not truncate at comma or halfway through a sentence.
-- If source sentence is split by PDF line breaks, reconstruct it into one continuous full sentence while keeping the original wording.
+- Provide magic_rewrites when possible; minimum 3.
+- For magic_rewrites.original, quote one complete sentence/bullet from source_snippets or other evidence fields in the structured JSON.
+- Keep magic_rewrites.original in the same wording/language as the candidate evidence.
 - If a section does not exist in the CV, set its score low and explain in section_audit.
 - Be concrete: never give generic advice like "perbaiki deskripsi" without a specific example.`;
 
     const chatCompletion = await groq.chat.completions.create({
       messages: [
         { role: 'system', content: systemPrompt },
-        { role: 'user', content: normalizedCvText },
+        { role: 'user', content: userContent },
       ],
       model: 'llama-3.3-70b-versatile',
       temperature: 0.3,
@@ -235,13 +797,13 @@ export async function matchRole(formData: FormData) {
   if (!file || !jobDescription) throw new Error('File atau Job Desc kurang!');
 
   try {
-    const cvText = await parsePdfText(file);
-    logDebugPreview('matchRole.cvText (raw extraction)', cvText);
+    const structuredCv = await buildStructuredCvFromFile(file);
+    if (!structuredCv) return null;
 
-    if (!cvText || cvText.trim().length < 50) return null;
+    const structuredCvPrompt = stringifyPromptJson(structuredCv);
 
     const systemPrompt = `You are a Hiring Manager + Career Strategist.
-Compare the Candidate CV with the Job Description (JD) in a practical, recruiter-grade way.
+Compare the structured Candidate CV JSON with the Job Description (JD) in a practical, recruiter-grade way.
 
 Analysis principles:
 - Prioritize hard skills, tools, domain exposure, and measurable achievements.
@@ -288,10 +850,10 @@ Rules:
     const userContent = `=== JOB DESCRIPTION ===
 ${jobDescription.substring(0, 7000)}
 
-=== CANDIDATE CV ===
-${cvText.substring(0, 7000)}`;
+=== STRUCTURED CANDIDATE CV JSON ===
+${structuredCvPrompt}`;
 
-  logDebugPreview('matchRole.userContent (sent to AI)', userContent);
+    logDebugPreview('matchRole.userContent (structured CV sent to AI)', userContent);
 
     const chatCompletion = await groq.chat.completions.create({
       messages: [
@@ -382,7 +944,10 @@ Return strict JSON only with this exact schema:
 }
 
 // --- FUNGSI 5: GENERATE INTERVIEW REPORT ---
-export async function generateInterviewReport(messages: any[], context: { mode: string, jobTitle: string }) {
+export async function generateInterviewReport(
+  messages: InterviewMessage[],
+  context: { mode: 'general' | 'technical', jobTitle: string },
+) {
   const transcript = messages
     .map(m => `${m.role === 'user' ? 'CANDIDATE' : 'INTERVIEWER'}: ${m.content}`)
     .join('\n');

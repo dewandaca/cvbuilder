@@ -1,12 +1,12 @@
 'use client'
 
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { polishText } from '../actions';
+import { extractCvToBuilderData, polishText } from '../actions';
 import { HarvardCV } from '@/components/HarvardCV';
 import { pdf } from '@react-pdf/renderer';
 import { 
   Plus, Trash2, Loader2, Save, ArrowLeft, 
-  Briefcase, GraduationCap, Trophy, Code, FolderGit2, Sparkles 
+  Briefcase, GraduationCap, Trophy, Code, FolderGit2, Sparkles, UploadCloud
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -259,16 +259,26 @@ const HarvardCVLivePreview = ({ data }: { data: CVData }) => {
 // Generic type-safe helper for items with id
 type ItemWithId = { id: number; [key: string]: unknown };
 
+const createEmptyPersonalInfo = () => ({ fullName: '', email: '', phone: '', linkedin: '', summary: '' });
+const createEmptyEducation = (id: number): Education => ({ id, school: '', major: '', gpa: '', startDate: '', endDate: '', isCurrent: false, description: '' });
+const createEmptyExperience = (id: number): Experience => ({ id, role: '', company: '', startDate: '', endDate: '', isCurrent: false, description: '' });
+const createEmptyProject = (id: number): Project => ({ id, name: '', role: '', startDate: '', endDate: '', description: '' });
+const createEmptyAchievement = (id: number): Achievement => ({ id, name: '', year: '' });
+
 export default function CvBuilder() {
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [builderMode, setBuilderMode] = useState<'new' | 'edit'>('new');
+  const [existingCvFile, setExistingCvFile] = useState<File | null>(null);
+  const [isImportingCv, setIsImportingCv] = useState(false);
+  const [importNotice, setImportNotice] = useState('');
   
   // --- STATE ---
-  const [personalInfo, setPersonalInfo] = useState({ fullName: '', email: '', phone: '', linkedin: '', summary: '' });
-  const [educations, setEducations] = useState<Education[]>([{ id: 1, school: '', major: '', gpa: '', startDate: '', endDate: '', isCurrent: false, description: '' }]);
-  const [experiences, setExperiences] = useState<Experience[]>([{ id: 1, role: '', company: '', startDate: '', endDate: '', isCurrent: false, description: '' }]);
-  const [projects, setProjects] = useState<Project[]>([{ id: 1, name: '', role: '', startDate: '', endDate: '', description: '' }]);
-  const [achievements, setAchievements] = useState<Achievement[]>([{ id: 1, name: '', year: '' }]);
+  const [personalInfo, setPersonalInfo] = useState(createEmptyPersonalInfo());
+  const [educations, setEducations] = useState<Education[]>([createEmptyEducation(1)]);
+  const [experiences, setExperiences] = useState<Experience[]>([createEmptyExperience(1)]);
+  const [projects, setProjects] = useState<Project[]>([createEmptyProject(1)]);
+  const [achievements, setAchievements] = useState<Achievement[]>([createEmptyAchievement(1)]);
   const [customSections, setCustomSections] = useState<CustomSection[]>([]);
   const [skills, setSkills] = useState({ hard: '', soft: '' });
 
@@ -315,6 +325,53 @@ export default function CvBuilder() {
         item.id === id ? ({ ...item, [key]: value } as T) : item
       )
     );
+  };
+
+  const resetToNewCv = () => {
+    setPersonalInfo(createEmptyPersonalInfo());
+    setEducations([createEmptyEducation(1)]);
+    setExperiences([createEmptyExperience(1)]);
+    setProjects([createEmptyProject(1)]);
+    setAchievements([createEmptyAchievement(1)]);
+    setCustomSections([]);
+    setSkills({ hard: '', soft: '' });
+    setExistingCvFile(null);
+    setImportNotice('');
+  };
+
+  const handleImportExistingCv = async () => {
+    if (!existingCvFile) {
+      alert('Pilih file CV PDF dulu.');
+      return;
+    }
+
+    setIsImportingCv(true);
+    setImportNotice('');
+
+    try {
+      const formData = new FormData();
+      formData.append('file', existingCvFile);
+      const parsed = await extractCvToBuilderData(formData);
+
+      if (!parsed) {
+        alert('Gagal mendeteksi isi CV. Pastikan PDF berisi teks yang bisa dibaca.');
+        return;
+      }
+
+      setPersonalInfo(parsed.personalInfo || createEmptyPersonalInfo());
+      setEducations(parsed.educations.length > 0 ? parsed.educations : [createEmptyEducation(1)]);
+      setExperiences(parsed.experiences.length > 0 ? parsed.experiences : [createEmptyExperience(1)]);
+      setProjects(parsed.projects.length > 0 ? parsed.projects : [createEmptyProject(1)]);
+      setAchievements(parsed.achievements.length > 0 ? parsed.achievements : [createEmptyAchievement(1)]);
+      setCustomSections(parsed.customSections || []);
+      setSkills(parsed.skills || { hard: '', soft: '' });
+      setImportNotice('CV berhasil dideteksi. Semua field sudah diisi otomatis, tinggal kamu review/edit seperti flow buat CV baru.');
+    } catch (error) {
+      console.error(error);
+      alert('Terjadi error saat membaca CV. Coba lagi.');
+    } finally {
+      setIsImportingCv(false);
+    }
   };
 
   // --- AI LOGIC ---
@@ -429,6 +486,82 @@ export default function CvBuilder() {
 
       <div className="max-w-[1400px] mx-auto mt-6 sm:mt-10 px-3 sm:px-6 xl:grid xl:grid-cols-[minmax(0,1fr)_minmax(540px,620px)] xl:gap-8 items-start">
         <div className="space-y-5 sm:space-y-8">
+
+        <section className="relative overflow-hidden bg-white p-4 sm:p-7 rounded-2xl border border-slate-200 shadow-lg">
+          <div className="mb-4 sm:mb-5">
+            <h2 className="text-lg sm:text-xl font-bold text-slate-800">Mulai Dari Mana?</h2>
+            <p className="text-sm text-slate-500 mt-1">Pilih buat CV baru dari nol, atau upload CV lama agar form Harvard terisi otomatis.</p>
+          </div>
+
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+            <button
+              onClick={() => {
+                setBuilderMode('new');
+                resetToNewCv();
+              }}
+              className={`w-full p-4 rounded-xl border text-left transition-all ${
+                builderMode === 'new'
+                  ? 'border-blue-500 bg-blue-50/80 shadow-md shadow-blue-500/10'
+                  : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
+              }`}
+            >
+              <p className="text-sm font-bold text-slate-800">Buat CV Baru</p>
+              <p className="text-xs text-slate-500 mt-1">Mulai dari form kosong seperti sistem saat ini.</p>
+            </button>
+
+            <button
+              onClick={() => {
+                setBuilderMode('edit');
+                setImportNotice('');
+              }}
+              className={`w-full p-4 rounded-xl border text-left transition-all ${
+                builderMode === 'edit'
+                  ? 'border-blue-500 bg-blue-50/80 shadow-md shadow-blue-500/10'
+                  : 'border-slate-200 bg-white hover:border-blue-300 hover:bg-blue-50/40'
+              }`}
+            >
+              <p className="text-sm font-bold text-slate-800">Edit CV Existing</p>
+              <p className="text-xs text-slate-500 mt-1">Upload PDF lalu sistem isi form otomatis, setelah itu tinggal kamu edit.</p>
+            </button>
+          </div>
+
+          {builderMode === 'edit' && (
+            <div className="mt-5 rounded-xl border border-dashed border-blue-300 bg-blue-50/40 p-4 sm:p-5">
+              <label className="block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2">Upload CV PDF</label>
+              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
+                <label className="flex-1 cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 hover:border-blue-400 hover:bg-blue-50/40 transition">
+                  <div className="flex items-center gap-2">
+                    <UploadCloud size={16} />
+                    <span>{existingCvFile ? existingCvFile.name : 'Pilih file CV (.pdf)'}</span>
+                  </div>
+                  <input
+                    type="file"
+                    accept="application/pdf"
+                    className="hidden"
+                    onChange={(e) => setExistingCvFile(e.target.files?.[0] || null)}
+                  />
+                </label>
+
+                <button
+                  onClick={handleImportExistingCv}
+                  disabled={isImportingCv || !existingCvFile}
+                  className="sm:w-auto w-full px-4 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
+                >
+                  {isImportingCv ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
+                  {isImportingCv ? 'Deteksi Isi CV...' : 'Deteksi & Isi Form'}
+                </button>
+              </div>
+
+              <p className="text-xs text-slate-500 mt-3">Setelah terisi otomatis, kamu lanjut edit di form yang sama seperti mode buat CV baru.</p>
+            </div>
+          )}
+
+          {importNotice && (
+            <div className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
+              {importNotice}
+            </div>
+          )}
+        </section>
         
         {/* 2. PERSONAL INFO */}
         <section className="relative overflow-hidden bg-gradient-to-br from-blue-50/80 via-white to-blue-50/40 p-4 sm:p-8 md:p-12 rounded-2xl sm:rounded-[2rem] border border-blue-200/50 shadow-lg hover:shadow-2xl hover:shadow-blue-500/20 transition-all duration-500 group">

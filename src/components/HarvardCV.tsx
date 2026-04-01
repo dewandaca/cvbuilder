@@ -87,13 +87,13 @@ const styles = StyleSheet.create({
   // --- HEADER SECTION ---
   header: { 
     textAlign: 'center', 
-    marginBottom: 10
+    marginBottom: 7
   },
   name: { 
     fontSize: 15, 
     fontFamily: 'Times-Bold', 
     textTransform: 'uppercase', 
-    marginBottom: 8 // Jarak aman biar gak nabrak contact info
+    marginBottom: 8 
   },
   contact: { 
     fontSize: 10, 
