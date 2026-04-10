@@ -1,11 +1,17 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react';
-import { chatInterview, generateInterviewReport } from '../actions';
+import { chatInterviewApi, generateInterviewReportApi } from '@/lib/llamaApiClient';
 import { Mic, User, Bot, Square, ArrowLeft, Send, CheckCircle, XCircle, AlertTriangle, Briefcase, Coffee, StopCircle } from 'lucide-react';
 import Link from 'next/link';
 
 type Message = { role: 'user' | 'assistant', content: string };
+
+type TeachingMoment = {
+  question: string;
+  candidate_answer: string;
+  better_answer: string;
+};
 
 export default function InterviewSim() {
   // --- STATE & REFS (Sama seperti sebelumnya) ---
@@ -123,7 +129,7 @@ export default function InterviewSim() {
     const newHistory: Message[] = isInit ? [] : [...messages, { role: 'user', content: text }];
     if (!isInit) setMessages(newHistory);
     setLoadingAI(true);
-    const { reply: aiResponse, shouldFinish } = await chatInterview(newHistory, { mode, jobTitle: jobInfo.title, jobDesc: jobInfo.desc });
+    const { reply: aiResponse, shouldFinish } = await chatInterviewApi(newHistory, { mode, jobTitle: jobInfo.title, jobDesc: jobInfo.desc });
     const finalHistory = [...newHistory, { role: 'assistant' as const, content: aiResponse }];
     setMessages(finalHistory);
     setLoadingAI(false);
@@ -146,11 +152,42 @@ export default function InterviewSim() {
     setIsSpeaking(false); setIsRecording(false);
     setGeneratingReport(true);
     try {
-      const data = await generateInterviewReport(messagesForReport ?? messages, { mode, jobTitle: jobInfo.title });
+      const data = await generateInterviewReportApi(messagesForReport ?? messages, { mode, jobTitle: jobInfo.title });
       setReport(data);
     } catch (e) { alert("Gagal membuat laporan."); } finally { setGeneratingReport(false); }
     isFinishingRef.current = false;
   };
+
+  const teachingMoments: TeachingMoment[] = (() => {
+    if (!report) return [];
+
+    const fromArray = Array.isArray(report.sample_better_answers) ? report.sample_better_answers : [];
+    const normalizedArray = fromArray
+      .filter((item: unknown): item is Record<string, unknown> => !!item && typeof item === 'object')
+      .map((item) => ({
+        question: typeof item.question === 'string' ? item.question.trim() : '',
+        candidate_answer: typeof item.candidate_answer === 'string' ? item.candidate_answer.trim() : '',
+        better_answer: typeof item.better_answer === 'string' ? item.better_answer.trim() : '',
+      }))
+      .filter((item) => item.question && item.candidate_answer && item.better_answer);
+
+    if (normalizedArray.length > 0) return normalizedArray;
+
+    const legacy = report.sample_better_answer;
+    if (!legacy || typeof legacy !== 'object') return [];
+
+    const legacyQuestion = typeof legacy.question === 'string' ? legacy.question.trim() : '';
+    const legacyCandidateAnswer = typeof legacy.candidate_answer === 'string' ? legacy.candidate_answer.trim() : '';
+    const legacyBetterAnswer = typeof legacy.better_answer === 'string' ? legacy.better_answer.trim() : '';
+
+    if (!legacyQuestion || !legacyCandidateAnswer || !legacyBetterAnswer) return [];
+
+    return [{
+      question: legacyQuestion,
+      candidate_answer: legacyCandidateAnswer,
+      better_answer: legacyBetterAnswer,
+    }];
+  })();
 
   // --- VIEW 1: REPORT CARD (Certificate Style) ---
   if (report) {
@@ -191,24 +228,28 @@ export default function InterviewSim() {
               </div>
             </div>
 
-            {report.sample_better_answer && (
+            {teachingMoments.length > 0 && (
               <div className="bg-slate-50 p-8 rounded-2xl border border-slate-200">
-                <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2 text-lg"><AlertTriangle className="text-yellow-500"/> Teaching Moment</h3>
-                <div className="space-y-6">
-                  <div>
-                    <span className="font-bold text-slate-400 text-xs uppercase tracking-wider">PERTANYAAN</span>
-                    <p className="text-slate-900 font-bold text-lg mt-1">"{report.sample_better_answer.question}"</p>
-                  </div>
-                  <div className="grid md:grid-cols-2 gap-6">
-                     <div className="bg-white p-5 rounded-xl border border-red-100 shadow-sm opacity-70">
-                        <span className="text-xs font-bold text-red-500 uppercase mb-2 block">Jawaban Kamu</span>
-                        <p className="text-slate-600 italic">"{report.sample_better_answer.candidate_answer}"</p>
-                     </div>
-                     <div className="bg-white p-5 rounded-xl border-l-4 border-green-500 shadow-md">
-                        <span className="text-xs font-bold text-green-600 uppercase mb-2 block">Saran Jawaban Pro</span>
-                        <p className="text-slate-800 font-medium">"{report.sample_better_answer.better_answer}"</p>
-                     </div>
-                  </div>
+                <h3 className="font-bold text-slate-800 mb-6 flex items-center gap-2 text-lg"><AlertTriangle className="text-yellow-500"/> Teaching Moments</h3>
+                <div className="space-y-8">
+                  {teachingMoments.map((moment, i) => (
+                    <div key={i} className="space-y-6">
+                      <div>
+                        <span className="font-bold text-slate-400 text-xs uppercase tracking-wider">PERTANYAAN {i + 1}</span>
+                        <p className="text-slate-900 font-bold text-lg mt-1">"{moment.question}"</p>
+                      </div>
+                      <div className="grid md:grid-cols-2 gap-6">
+                        <div className="bg-white p-5 rounded-xl border border-red-100 shadow-sm opacity-70">
+                          <span className="text-xs font-bold text-red-500 uppercase mb-2 block">Jawaban Kamu</span>
+                          <p className="text-slate-600 italic">"{moment.candidate_answer}"</p>
+                        </div>
+                        <div className="bg-white p-5 rounded-xl border-l-4 border-green-500 shadow-md">
+                          <span className="text-xs font-bold text-green-600 uppercase mb-2 block">Saran Jawaban Pro</span>
+                          <p className="text-slate-800 font-medium">"{moment.better_answer}"</p>
+                        </div>
+                      </div>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
@@ -290,7 +331,7 @@ export default function InterviewSim() {
              <div className="text-xs text-slate-500">{mode === 'general' ? 'Behavioral Interview' : 'Technical Interview'}</div>
            </div>
         </div>
-        <button onClick={finishSession} className="text-xs bg-red-600/10 text-red-500 border border-red-900/50 px-5 py-2 rounded-full hover:bg-red-600 hover:text-white font-bold transition flex items-center gap-2">
+        <button onClick={() => { void finishSession(); }} className="text-xs bg-red-600/10 text-red-500 border border-red-900/50 px-5 py-2 rounded-full hover:bg-red-600 hover:text-white font-bold transition flex items-center gap-2">
           <StopCircle size={14}/> Selesai & Nilai
         </button>
       </div>

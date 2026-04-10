@@ -81,21 +81,80 @@ type BuilderCvPayload = {
 
 const DEBUG_PDF_EXTRACTION = process.env.DEBUG_PDF_EXTRACTION === 'true';
 
+const SUMMARY_MAX_CHARS = 1100;
+const DATE_RANGE_SEPARATORS = [' - ', ' to ', ' until ', ' s/d ', ' sd '];
+const CURRENT_DATE_MARKERS = ['present', 'current', 'now', 'sekarang'];
+
+function isWhitespaceChar(char: string): boolean {
+  return char === ' ' || char === '\n' || char === '\r' || char === '\t' || char === '\f' || char === '\v';
+}
+
+function isDigitChar(char: string): boolean {
+  return char >= '0' && char <= '9';
+}
+
+function cleanInlineText(value: string): string {
+  let result = '';
+  let previousWasWhitespace = false;
+
+  for (const char of value) {
+    if (isWhitespaceChar(char)) {
+      if (!previousWasWhitespace) {
+        result += ' ';
+        previousWasWhitespace = true;
+      }
+      continue;
+    }
+
+    result += char;
+    previousWasWhitespace = false;
+  }
+
+  return result.trim();
+}
+
 function logDebugPreview(label: string, value: string) {
   if (!DEBUG_PDF_EXTRACTION || !value) return;
 
-  const compact = value.replace(/\s+/g, ' ').trim();
+  const compact = cleanInlineText(value);
   console.log(`[DEBUG] ${label} length:`, value.length);
   console.log(`[DEBUG] ${label} preview:`, compact);
 }
 
 function normalizeCvTextForLLM(text: string): string {
-  return text
-    .replace(/\r/g, '')
-    .replace(/-\n\s*(?=[a-zA-Z])/g, '')
-    .replace(/([^\n])\n\s*(?=[a-zA-Z0-9(])/g, '$1 ')
-    .replace(/\n{3,}/g, '\n\n')
-    .trim();
+  const lines = text.replaceAll('\r', '').split('\n');
+  const normalizedLines: string[] = [];
+  let previousWasBlank = false;
+
+  for (const line of lines) {
+    const trimmed = line.trim();
+    if (!trimmed) {
+      if (!previousWasBlank && normalizedLines.length > 0) {
+        normalizedLines.push('');
+      }
+      previousWasBlank = true;
+      continue;
+    }
+
+    normalizedLines.push(trimmed);
+    previousWasBlank = false;
+  }
+
+  return normalizedLines.join('\n').trim();
+}
+
+function stripCodeFence(content: string): string {
+  const trimmed = content.trim();
+  if (!trimmed.startsWith('```')) {
+    return trimmed;
+  }
+
+  const lines = trimmed.split('\n');
+  if (lines.length >= 2 && lines[0].startsWith('```') && lines[lines.length - 1].startsWith('```')) {
+    return lines.slice(1, -1).join('\n').trim();
+  }
+
+  return trimmed.split('```').join('').trim();
 }
 
 function parseJsonObject(content: string | null | undefined): Record<string, unknown> | null {
@@ -103,7 +162,7 @@ function parseJsonObject(content: string | null | undefined): Record<string, unk
 
   const candidates = [
     content,
-    content.replace(/```json|```/gi, '').trim(),
+    stripCodeFence(content),
   ];
 
   const firstBrace = content.indexOf('{');
@@ -126,6 +185,28 @@ function parseJsonObject(content: string | null | undefined): Record<string, unk
   return null;
 }
 
+function sanitizeInterviewReply(reply: string): string {
+  let sanitized = reply.trim();
+
+  // Remove leading evaluative feedback so interviewer stays neutral.
+  sanitized = sanitized.replace(
+    /^(terima kasih,?\s*)?(jawaban\s+(anda|kamu)\s+(benar|tepat|bagus|sangat bagus|cukup baik|kurang tepat|kurang lengkap|salah)\b[^.!?]*[.!?]\s*)/i,
+    '',
+  );
+  sanitized = sanitized.replace(/^(benar|betul|tepat)\s*,\s*/i, '');
+
+  if (!sanitized) {
+    return reply.trim();
+  }
+
+  const firstChar = sanitized[0];
+  if (firstChar >= 'a' && firstChar <= 'z') {
+    sanitized = firstChar.toUpperCase() + sanitized.slice(1);
+  }
+
+  return sanitized;
+}
+
 async function parsePdfText(file: File): Promise<string> {
   const arrayBuffer = await file.arrayBuffer();
   const buffer = Buffer.from(arrayBuffer);
@@ -143,113 +224,55 @@ async function parsePdfText(file: File): Promise<string> {
   });
 }
 
-const SUMMARY_HEADING_LINE_PATTERN = /^(?:professional\s+summary|summary|profile|about\s+me|objective|career\s+objective|ringkasan\s+profil|ringkasan|profil|tentang\s+saya|tujuan\s+karier)\s*[:\-]?$/i;
-const SUMMARY_HEADING_INLINE_PATTERN = /^(?:professional\s+summary|summary|profile|about\s+me|objective|career\s+objective|ringkasan\s+profil|ringkasan|profil|tentang\s+saya|tujuan\s+karier)\s*[:\-]\s*(.+)$/i;
-const GENERIC_SECTION_HEADING_PATTERN = /^(?:work\s+experience|experience|employment\s+history|projects?|education|skills?|certifications?|languages?|achievements?|awards?|organizations?|internships?|contact|riwayat\s+pekerjaan|pengalaman\s+kerja|proyek|pendidikan|keahlian|sertifikasi|bahasa|pencapaian|kontak)\s*[:\-]?$/i;
-const SUMMARY_SECTION_MARKER_PATTERN = /\b(?:experience|education|skills?|projects?|certifications?|languages?|achievements?|awards?|organizations?|internships?|contact|pengalaman|pendidikan|keahlian|proyek|sertifikasi|bahasa|pencapaian|kontak)\b/gi;
-const SUMMARY_MAX_CHARS = 1100;
-const SUMMARY_MIN_CHARS = 60;
-
-function cleanInlineText(value: string): string {
-  return value.replace(/\s+/g, ' ').trim();
-}
-
-function isLikelySectionHeading(line: string): boolean {
-  const normalized = line.trim();
-  if (!normalized) return false;
-  return SUMMARY_HEADING_LINE_PATTERN.test(normalized) || GENERIC_SECTION_HEADING_PATTERN.test(normalized);
-}
-
-function isLikelyContactParagraph(paragraph: string): boolean {
-  const lower = paragraph.toLowerCase();
-  const hasContactHint =
-    lower.includes('@') ||
-    lower.includes('linkedin') ||
-    lower.includes('github') ||
-    lower.includes('portfolio') ||
-    lower.includes('phone') ||
-    lower.includes('tel') ||
-    lower.includes('email');
-
-  return hasContactHint && paragraph.split(/\s+/).length <= 40;
-}
-
-function extractSummaryFromHeading(normalizedCvText: string): string | null {
-  const lines = normalizedCvText
-    .split('\n')
-    .map(line => line.trim())
+function extractFirstParagraph(normalizedCvText: string): string {
+  const paragraphs = normalizedCvText
+    .split('\n\n')
+    .map(part => cleanInlineText(part))
     .filter(Boolean);
 
-  let collecting = false;
-  const collected: string[] = [];
+  return paragraphs[0] || '';
+}
 
-  for (const line of lines) {
-    const inlineMatch = line.match(SUMMARY_HEADING_INLINE_PATTERN);
-    if (inlineMatch) {
-      collecting = true;
-      const inlineContent = cleanInlineText(inlineMatch[1] || '');
-      if (inlineContent) collected.push(inlineContent);
-      continue;
-    }
+function buildSourceSnippetsFallback(normalizedCvText: string, maxItems = 12): string[] {
+  const uniqueLines: string[] = [];
 
-    if (!collecting) {
-      if (SUMMARY_HEADING_LINE_PATTERN.test(line)) {
-        collecting = true;
-      }
-      continue;
-    }
+  for (const line of normalizedCvText.split('\n')) {
+    const cleaned = cleanInlineText(line);
+    if (!cleaned || cleaned.length < 20) continue;
+    if (uniqueLines.includes(cleaned)) continue;
 
-    if (isLikelySectionHeading(line) && !SUMMARY_HEADING_LINE_PATTERN.test(line)) {
-      break;
-    }
-
-    collected.push(line);
+    uniqueLines.push(cleaned);
+    if (uniqueLines.length >= maxItems) break;
   }
 
-  if (!collected.length) return null;
-
-  const summary = cleanInlineText(collected.join(' '));
-  if (summary.length < SUMMARY_MIN_CHARS || summary.length > SUMMARY_MAX_CHARS) return null;
-  return summary;
+  return uniqueLines;
 }
 
-function extractSummaryFromTopParagraph(normalizedCvText: string): string | null {
-  const paragraphs = normalizedCvText
-    .split(/\n{2,}/)
-    .map(part => cleanInlineText(part))
-    .filter(Boolean)
-    .slice(0, 8);
+function applyStructuredCvFallbacks(
+  structuredCv: Record<string, unknown>,
+  normalizedCvText: string,
+): Record<string, unknown> {
+  const patched: Record<string, unknown> = { ...structuredCv };
 
-  for (const paragraph of paragraphs) {
-    if (paragraph.length < 120 || paragraph.length > SUMMARY_MAX_CHARS) continue;
-    if (isLikelyContactParagraph(paragraph)) continue;
-    if (isLikelySectionHeading(paragraph)) continue;
-
-    const sentenceCount = paragraph.split(/[.!?](?:\s|$)/).filter(Boolean).length;
-    const markerCount = (paragraph.match(SUMMARY_SECTION_MARKER_PATTERN) || []).length;
-    if (sentenceCount >= 2 && sentenceCount <= 6 && markerCount <= 2) return paragraph;
+  const currentSummary = typeof patched.summary === 'string' ? cleanInlineText(patched.summary) : '';
+  if (currentSummary) {
+    patched.summary = currentSummary.slice(0, SUMMARY_MAX_CHARS);
+  } else {
+    const firstParagraph = extractFirstParagraph(normalizedCvText);
+    if (firstParagraph) {
+      patched.summary = firstParagraph.slice(0, SUMMARY_MAX_CHARS);
+    }
   }
 
-  return null;
-}
+  const currentSnippets = asStringArray(patched.source_snippets);
+  if (!currentSnippets.length) {
+    const fallbackSnippets = buildSourceSnippetsFallback(normalizedCvText);
+    if (fallbackSnippets.length) {
+      patched.source_snippets = fallbackSnippets;
+    }
+  }
 
-function extractSummaryCandidate(normalizedCvText: string): string | null {
-  return extractSummaryFromHeading(normalizedCvText) || extractSummaryFromTopParagraph(normalizedCvText);
-}
-
-function isSuspiciousSummary(summary: string): boolean {
-  const normalized = cleanInlineText(summary);
-  if (!normalized) return true;
-
-  const sentenceCount = normalized.split(/[.!?](?:\s|$)/).filter(Boolean).length;
-  const markerCount = (normalized.match(SUMMARY_SECTION_MARKER_PATTERN) || []).length;
-
-  return normalized.length > SUMMARY_MAX_CHARS || sentenceCount > 8 || markerCount >= 4;
-}
-
-function takeFirstSentences(text: string, maxSentences = 5): string {
-  const chunks = text.match(/[^.!?]+[.!?]?/g) || [text];
-  return cleanInlineText(chunks.slice(0, maxSentences).join(' '));
+  return patched;
 }
 
 function asStringArray(value: unknown): string[] {
@@ -277,17 +300,63 @@ function readString(obj: Record<string, unknown> | null, key: string): string {
   return typeof value === 'string' ? value.trim() : '';
 }
 
+function splitDateRangeBySeparator(value: string): string[] {
+  const lower = value.toLowerCase();
+
+  for (const separator of DATE_RANGE_SEPARATORS) {
+    const index = lower.indexOf(separator);
+    if (index === -1) continue;
+
+    const start = value.slice(0, index).trim();
+    const end = value.slice(index + separator.length).trim();
+    return [start, end].filter(Boolean);
+  }
+
+  return [value];
+}
+
+function containsCurrentMarker(value: string): boolean {
+  const lower = cleanInlineText(value).toLowerCase();
+  if (!lower) return false;
+
+  for (const marker of CURRENT_DATE_MARKERS) {
+    if (lower === marker) return true;
+    if (lower.startsWith(`${marker} `)) return true;
+    if (lower.endsWith(` ${marker}`)) return true;
+    if (lower.includes(` ${marker} `)) return true;
+  }
+
+  return false;
+}
+
+function removeCurrentMarker(value: string): string {
+  let result = cleanInlineText(value);
+
+  for (const marker of CURRENT_DATE_MARKERS) {
+    result = result.split(` ${marker} `).join(' ');
+    if (result.toLowerCase().startsWith(`${marker} `)) {
+      result = result.slice(marker.length + 1).trim();
+    }
+    if (result.toLowerCase().endsWith(` ${marker}`)) {
+      result = result.slice(0, result.length - marker.length - 1).trim();
+    }
+  }
+
+  if (result.endsWith('-')) {
+    result = result.slice(0, -1).trim();
+  }
+
+  return result;
+}
+
 function parseDateRange(period: string): { startDate: string; endDate: string; isCurrent: boolean } {
-  const normalized = period.replace(/\s+/g, ' ').trim();
+  const normalized = cleanInlineText(period);
   if (!normalized) return { startDate: '', endDate: '', isCurrent: false };
 
-  const parts = normalized
-    .split(/\s*(?:-|–|—|to|until|s\/d|sd)\s*/i)
-    .map((part) => part.trim())
-    .filter(Boolean);
+  const parts = splitDateRangeBySeparator(normalized);
 
   const rawEnd = parts.length >= 2 ? parts[parts.length - 1] : '';
-  const isCurrent = /^(?:present|current|now|sekarang)$/i.test(rawEnd) || /\b(?:present|current|now|sekarang)\b/i.test(normalized);
+  const isCurrent = containsCurrentMarker(rawEnd) || containsCurrentMarker(normalized);
 
   if (parts.length >= 2) {
     return {
@@ -299,7 +368,7 @@ function parseDateRange(period: string): { startDate: string; endDate: string; i
 
   if (isCurrent) {
     return {
-      startDate: normalized.replace(/\b(?:present|current|now|sekarang)\b/gi, '').replace(/[-–—]\s*$/g, '').trim(),
+      startDate: removeCurrentMarker(normalized),
       endDate: '',
       isCurrent: true,
     };
@@ -309,58 +378,17 @@ function parseDateRange(period: string): { startDate: string; endDate: string; i
 }
 
 function extractYear(value: string): string {
-  const match = value.match(/\b(19|20)\d{2}\b/);
-  return match ? match[0] : '';
-}
+  for (let index = 0; index <= value.length - 4; index++) {
+    const candidate = value.slice(index, index + 4);
+    if (!candidate.split('').every(isDigitChar)) continue;
 
-function buildSourceSnippetsFallback(normalizedCvText: string, maxItems = 12): string[] {
-  const lines = normalizedCvText
-    .split('\n')
-    .map(line => cleanInlineText(line))
-    .filter(line => line.length >= 25)
-    .filter(line => !isLikelySectionHeading(line));
-
-  return Array.from(new Set(lines)).slice(0, maxItems);
-}
-
-function applyStructuredCvFallbacks(
-  structuredCv: Record<string, unknown>,
-  normalizedCvText: string,
-): Record<string, unknown> {
-  const patched: Record<string, unknown> = { ...structuredCv };
-
-  const summaryCandidate = extractSummaryCandidate(normalizedCvText);
-  const currentSummary = typeof patched.summary === 'string' ? patched.summary.trim() : '';
-  const hasSuspiciousCurrentSummary = !!currentSummary && isSuspiciousSummary(currentSummary);
-
-  if (summaryCandidate && !isSuspiciousSummary(summaryCandidate)) {
-    const isLikelyTruncated =
-      !currentSummary ||
-      currentSummary.length + 80 < summaryCandidate.length ||
-      currentSummary.length < Math.floor(summaryCandidate.length * 0.75) ||
-      hasSuspiciousCurrentSummary;
-
-    if (isLikelyTruncated) {
-      patched.summary = summaryCandidate;
-    }
-  } else if (hasSuspiciousCurrentSummary) {
-    const shortened = takeFirstSentences(currentSummary, 5);
-    if (shortened.length >= SUMMARY_MIN_CHARS && !isSuspiciousSummary(shortened)) {
-      patched.summary = shortened;
-    } else {
-      delete patched.summary;
+    const year = Number(candidate);
+    if (year >= 1900 && year <= 2099) {
+      return candidate;
     }
   }
 
-  const currentSnippets = asStringArray(patched.source_snippets);
-  if (currentSnippets.length < 6) {
-    const fallbackSnippets = buildSourceSnippetsFallback(normalizedCvText);
-    if (fallbackSnippets.length) {
-      patched.source_snippets = Array.from(new Set([...currentSnippets, ...fallbackSnippets])).slice(0, 12);
-    }
-  }
-
-  return patched;
+  return '';
 }
 
 function mapStructuredCvToBuilderPayload(structuredCv: Record<string, unknown>): BuilderCvPayload {
@@ -476,7 +504,7 @@ function mapStructuredCvToBuilderPayload(structuredCv: Record<string, unknown>):
     });
   }
 
-  const linkedin = profileLinks.find((link) => /linkedin\.com/i.test(link)) || profileLinks[0] || '';
+  const linkedin = profileLinks.find((link) => link.toLowerCase().includes('linkedin.com')) || profileLinks[0] || '';
   const phone = readString(profilePhone, 'normalized') || readString(profilePhone, 'raw') || readString(profile, 'phone');
 
   return {
@@ -504,6 +532,76 @@ function stringifyPromptJson(data: Record<string, unknown>, maxChars = 12000): s
   if (json.length <= maxChars) return json;
 
   return `${json.slice(0, maxChars)}\n[TRUNCATED]`;
+}
+
+function normalizeReviewCvResult(payload: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!payload) return null;
+
+  const normalizedPayload: Record<string, unknown> = { ...payload };
+
+  const strengths = asStringArray(normalizedPayload.strengths);
+  const weaknesses = asStringArray(normalizedPayload.weaknesses);
+  const redFlags = asStringArray(normalizedPayload.red_flags);
+
+  if (strengths.length > 0) {
+    normalizedPayload.strengths = strengths.slice(0, 5);
+  } else {
+    normalizedPayload.strengths = ['Struktur CV sudah cukup jelas dan mudah dibaca recruiter.'];
+  }
+
+  if (weaknesses.length > 0) {
+    normalizedPayload.weaknesses = weaknesses.slice(0, 5);
+  } else if (redFlags.length > 0) {
+    normalizedPayload.weaknesses = redFlags.slice(0, 5);
+  } else {
+    normalizedPayload.weaknesses = ['Impact terukur dan keyword ATS masih perlu diperkuat.'];
+  }
+
+  const atsAnalysis = asObject(normalizedPayload.ats_analysis);
+  if (!atsAnalysis) return normalizedPayload;
+
+  const normalizedRoles = asObjectArray(atsAnalysis.detected_roles)
+    .map((item) => {
+      const role = readString(item, 'role');
+      if (!role) return null;
+
+      const fitScoreValue = item.fit_score;
+      const fitScore =
+        typeof fitScoreValue === 'number' && Number.isFinite(fitScoreValue)
+          ? Math.max(0, Math.min(100, Math.round(fitScoreValue)))
+          : undefined;
+
+      const reason = readString(item, 'reason');
+
+      return {
+        role,
+        ...(typeof fitScore === 'number' ? { fit_score: fitScore } : {}),
+        ...(reason ? { reason } : {}),
+      };
+    })
+    .filter((item): item is { role: string; fit_score?: number; reason?: string } => !!item);
+
+  if (!normalizedRoles.length) {
+    const fallbackRole = readString(atsAnalysis, 'detected_role');
+    if (fallbackRole) {
+      normalizedRoles.push({ role: fallbackRole });
+    }
+  }
+
+  const dedupedRoles = normalizedRoles.filter((item, index, arr) =>
+    arr.findIndex((candidate) => candidate.role.toLowerCase() === item.role.toLowerCase()) === index,
+  );
+
+  if (!dedupedRoles.length) return normalizedPayload;
+
+  return {
+    ...normalizedPayload,
+    ats_analysis: {
+      ...atsAnalysis,
+      detected_role: readString(atsAnalysis, 'detected_role') || dedupedRoles[0].role,
+      detected_roles: dedupedRoles.slice(0, 5),
+    },
+  };
 }
 
 async function extractStructuredCvData(normalizedCvText: string): Promise<Record<string, unknown> | null> {
@@ -712,22 +810,23 @@ You MUST return valid JSON with this EXACT structure:
 {
   "executive_summary": "string (in Indonesian)",
   "ats_analysis": {
-    "score": 0, // 0-100 based on keyword presence and relevance
+    "score": 0, // 0-100 holistic ATS readiness score (writing quality, structure, role relevance, and keyword coverage)
     "missing_keywords": ["string"],
-    "detected_role": "string"
+    "detected_role": "string", // primary best-fit role (must match detected_roles[0].role)
+    "detected_roles": [
+      {
+        "role": "string",
+        "fit_score": 0, // 0-100 based on CV evidence strength
+        "reason": "string (in Indonesian)"
+      }
+    ]
   },
+  "strengths": ["string (in Indonesian)"],
+  "weaknesses": ["string (in Indonesian)"],
   "red_flags": ["string (in Indonesian)"],
   "section_audit": {
     "summary": "string (in Indonesian)",
-    "experience": "string (in Indonesian)",
-    "formatting": "string (in Indonesian)"
-  },
-  "section_scores": {
-    "summary": 0, //score 0-100
-    "experience": 0, //score 0-100
-    "skills": 0, //score 0-100
-    "education": 0, //score 0-100
-    "formatting": 0 //score 0-100
+    "experience": "string (in Indonesian)"
   },
   "prioritized_actions": [
     {
@@ -763,6 +862,17 @@ Language policy:
 
 Rules:
 - Always include all keys even if data is limited.
+- ats_analysis.score must be calculated holistically, not keyword-only.
+- Use weighted rubric for ats_analysis.score:
+  - Writing clarity, impact, and bullet quality: 40%
+  - Role alignment and keyword coverage: 30%
+  - Evidence quality (scope, ownership, measurable outcomes): 20%
+  - Structure, chronology consistency, and scanability: 10%
+- detected_roles must contain 3-5 realistic role options sorted by fit_score descending.
+- detected_role must be exactly the same as detected_roles[0].role.
+- Each detected role must be inferred from evidence in CV (skills, projects, experience), not random generic titles.
+- strengths must contain 3-5 concise points.
+- weaknesses must contain 3-5 concise points.
 - Provide exactly 5 prioritized_actions sorted from highest impact + lowest effort first.
 - Provide magic_rewrites when possible; minimum 3.
 - For magic_rewrites.original, quote one complete sentence/bullet from source_snippets or other evidence fields in the structured JSON.
@@ -781,7 +891,7 @@ Rules:
     });
 
     const result = parseJsonObject(chatCompletion.choices[0]?.message?.content);
-    return result || null;
+    return normalizeReviewCvResult(result);
 
   } catch (error) {
     console.error('Error reviewing CV:', error);
@@ -883,14 +993,15 @@ export async function chatInterview(
 
   if (context.mode === 'general') {
     systemInstruction = `You are a Friendly but Professional HR Recruiter.
-You are conducting a behavioral interview.
-${isFirstTurn ? 'Start by asking "Ceritakan tentang diri Anda" in Indonesian.' : 'Do NOT restart the interview. Continue from the latest candidate answer.'}
+You are conducting a behavioral interview in Indonesian.
+${isFirstTurn ? 'Open like an HR interviewer: greet the candidate briefly, then ask exactly 1 opening question "Ceritakan tentang diri Anda".' : 'Do NOT restart the interview. Continue from the latest candidate answer.'}
 Ask standard HR topics (Strengths, Weaknesses, Conflict resolution), but adapt to candidate context.
-First acknowledge/refer to the candidate's latest answer in 1 short sentence, then ask exactly 1 next question.
+For non-first turns: briefly refer to one specific point from the candidate\'s latest answer in neutral tone, then ask exactly 1 follow-up question.
+Do NOT grade, validate, or correct the candidate\'s answer. Avoid evaluative phrases such as "Jawaban Anda benar", "jawaban kamu tepat", "benar sekali", or "kurang tepat".
 Never repeat the exact same question that already appeared in history unless candidate clearly did not answer.
 Keep responses short (max 2-3 sentences) to simulate a real conversation.
 Decide yourself when the interview is complete. Usually complete after enough signal is gathered (around 5-8 candidate answers), but you may finish earlier/later based on answer quality.
-If complete, provide a short closing sentence and do not ask a new question.
+If complete, provide a short HR-style closing: thank the candidate, say next step will be informed, and do not ask a new question.
 Language: Indonesian (Colloquial/Formal mix).
 
 Return strict JSON only with this exact schema:
@@ -899,16 +1010,17 @@ Return strict JSON only with this exact schema:
   "should_finish": false
 }`;
   } else {
-    systemInstruction = `You are a Senior Technical Lead for the role: ${context.jobTitle}.
+    systemInstruction = `You are a Professional Technical Interviewer for the role: ${context.jobTitle}.
 You are conducting a hard-skill technical interview based on this Job Desc: "${context.jobDesc?.substring(0, 500)}...".
 
-${isFirstTurn ? 'Start with one technical opening question in Indonesian relevant to the role.' : 'Do NOT restart the interview. Continue from the latest candidate answer.'}
-Ask specific technical questions and dig deep on the candidate's previous answer.
-First evaluate/acknowledge the latest candidate answer in 1 short sentence (correct, partial, or needs improvement), then ask exactly 1 follow-up or next question.
+${isFirstTurn ? 'Open like an HR interviewer: greet briefly, state this is a technical session, then ask exactly 1 technical opening question in Indonesian relevant to the role.' : 'Do NOT restart the interview. Continue from the latest candidate answer.'}
+Ask specific technical questions and dig deep on the candidate\'s previous answer.
+For non-first turns: briefly refer to one concrete detail from the candidate\'s latest answer in neutral tone, then ask exactly 1 deeper technical follow-up question.
+Do NOT grade, validate, or correct the candidate\'s answer. Avoid evaluative phrases such as "Jawaban Anda benar", "jawaban kamu tepat", "benar sekali", or "kurang tepat".
 Never repeat the exact same question that already appeared in history unless candidate clearly did not answer.
 Keep questions short and direct.
 Decide yourself when the interview is complete. Usually complete after enough signal is gathered (around 5-8 candidate answers), but you may finish earlier/later based on answer quality.
-If complete, provide a short closing sentence and do not ask a new question.
+If complete, provide a short HR-style closing: thank the candidate, say next step will be informed, and do not ask a new question.
 Language: Indonesian.
 
 Return strict JSON only with this exact schema:
@@ -932,7 +1044,7 @@ Return strict JSON only with this exact schema:
 
     const parsed = parseJsonObject(chatCompletion.choices[0]?.message?.content) || {};
     const reply = typeof parsed.reply === 'string' && parsed.reply.trim()
-      ? parsed.reply
+      ? sanitizeInterviewReply(parsed.reply)
       : 'Maaf, saya tidak mendengar. Bisa ulangi?';
     const shouldFinish = parsed.should_finish === true;
 
@@ -941,6 +1053,54 @@ Return strict JSON only with this exact schema:
     console.error('Error interview chat:', error);
     return { reply: 'Gangguan sinyal. Mari kita lanjut.', shouldFinish: false };
   }
+}
+
+function normalizeInterviewReportResult(payload: Record<string, unknown> | null): Record<string, unknown> | null {
+  if (!payload) return null;
+
+  const normalizedPayload: Record<string, unknown> = { ...payload };
+  const moments: Array<{ question: string; candidate_answer: string; better_answer: string }> = [];
+
+  for (const item of asObjectArray(normalizedPayload.sample_better_answers)) {
+    const question = readString(item, 'question');
+    const candidateAnswer = readString(item, 'candidate_answer');
+    const betterAnswer = readString(item, 'better_answer');
+
+    if (!question || !candidateAnswer || !betterAnswer) continue;
+    moments.push({
+      question,
+      candidate_answer: candidateAnswer,
+      better_answer: betterAnswer,
+    });
+  }
+
+  const legacyMoment = asObject(normalizedPayload.sample_better_answer);
+  if (legacyMoment) {
+    const question = readString(legacyMoment, 'question');
+    const candidateAnswer = readString(legacyMoment, 'candidate_answer');
+    const betterAnswer = readString(legacyMoment, 'better_answer');
+
+    if (question && candidateAnswer && betterAnswer) {
+      moments.push({
+        question,
+        candidate_answer: candidateAnswer,
+        better_answer: betterAnswer,
+      });
+    }
+  }
+
+  const dedupedMoments = moments.filter((moment, index, arr) =>
+    arr.findIndex((candidate) =>
+      candidate.question === moment.question
+      && candidate.candidate_answer === moment.candidate_answer
+      && candidate.better_answer === moment.better_answer,
+    ) === index,
+  );
+
+  normalizedPayload.sample_better_answers = dedupedMoments.slice(0, 3);
+  delete normalizedPayload.sample_better_answer;
+
+  return normalizedPayload;
 }
 
 // --- FUNGSI 5: GENERATE INTERVIEW REPORT ---
@@ -952,32 +1112,65 @@ export async function generateInterviewReport(
     .map(m => `${m.role === 'user' ? 'CANDIDATE' : 'INTERVIEWER'}: ${m.content}`)
     .join('\n');
 
-  const systemPrompt = `You are a Senior Hiring Manager. You have just finished interviewing a candidate.
-Analyze the following INTERVIEW TRANSCRIPT.
+  const weightedRubric = context.mode === 'technical'
+    ? `- Communication Clarity: 20%
+- Relevance of Answers to the question: 30%
+- Technical Depth & Problem-Solving: 50%`
+    : `- Communication Clarity: 35%
+- Relevance of Answers to the question: 35%
+- Behavioral Depth (ownership, reflection, decision quality): 30%`;
+
+  const systemPrompt = `You are a Senior Hiring Manager writing a final interview debrief.
+Analyze the following INTERVIEW TRANSCRIPT and produce a fair, evidence-based assessment.
 
 Context:
 - Mode: ${context.mode}
 - Role Applied: ${context.jobTitle || 'General Position'}
 
-Evaluate the candidate based on:
-1. Communication Clarity
-2. Relevance of Answers
-3. Technical/Behavioral Depth
+Use this weighted rubric:
+${weightedRubric}
 
-Return strict JSON:
+Score calibration (0-100):
+- 90-100: exceptional, consistent, high-confidence hire
+- 75-89: strong, mostly solid with minor gaps
+- 60-74: acceptable but uneven, notable gaps
+- 40-59: weak signal, many important gaps
+- 0-39: very weak, not ready for role
+
+Rules:
+- Base judgments only on evidence from candidate answers in transcript.
+- Do not hallucinate achievements, tools, or experience not stated by candidate.
+- If interview data is limited (few candidate answers), mention this limitation in feedback_summary and score conservatively.
+- Keep feedback actionable and specific to role context.
+- Tone: professional, direct, constructive, like real HR debrief.
+
+Return strict JSON with this exact schema:
 {
   "score": 0,
   "verdict": "string",
   "feedback_summary": "string",
   "strengths": ["string"],
   "areas_for_improvement": ["string"],
-  "sample_better_answer": {
-    "question": "string",
-    "candidate_answer": "string",
-    "better_answer": "string"
-  }
+  "sample_better_answers": [
+    {
+      "question": "string",
+      "candidate_answer": "string",
+      "better_answer": "string"
+    }
+  ]
 }
-Language: Indonesian.`;
+
+Output constraints:
+- Keep JSON keys in English, all content values in Indonesian.
+- score must be an integer from 0 to 100.
+- verdict must be exactly one of: "Sangat Direkomendasikan", "Direkomendasikan", "Dipertimbangkan", "Belum Direkomendasikan".
+- feedback_summary: 3-5 kalimat, ringkas tapi tajam.
+- strengths: 3-5 poin, spesifik dan berbasis bukti.
+- areas_for_improvement: 3-5 poin, prioritaskan gap paling penting.
+- sample_better_answers must contain 2-3 items.
+- Each sample_better_answers item.question and candidate_answer must correspond to one weak moment from transcript.
+- Each sample_better_answers item.better_answer harus realistis, relevan role, dan menunjukkan kualitas jawaban yang lebih kuat.
+- Do not include markdown, code fences, or any text outside JSON.`;
 
   try {
     const chatCompletion = await groq.chat.completions.create({
@@ -990,7 +1183,7 @@ Language: Indonesian.`;
       response_format: { type: 'json_object' },
     });
 
-    return parseJsonObject(chatCompletion.choices[0]?.message?.content);
+    return normalizeInterviewReportResult(parseJsonObject(chatCompletion.choices[0]?.message?.content));
   } catch (error) {
     console.error('Error generating report:', error);
     return null;

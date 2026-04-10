@@ -38,11 +38,28 @@ type Achievement = {
   year: string;
 };
 
+type CustomSectionMode = 'simple' | 'experience';
+
+type CustomSectionItem = {
+  id: number;
+  title: string;
+  subtitle: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  description: string;
+};
+
 type CustomSection = {
   id: number;
   title: string;
   content: string;
+  mode?: CustomSectionMode;
+  items?: CustomSectionItem[];
 };
+
+type BaseSectionKey = 'summary' | 'education' | 'experience' | 'projects' | 'skills' | 'achievements';
+type SectionOrderToken = BaseSectionKey | `custom:${number}`;
 
 type CVData = {
   personalInfo: {
@@ -61,7 +78,101 @@ type CVData = {
     hard: string;
     soft: string;
   };
+  sectionOrder?: string[];
 };
+
+const DEFAULT_SECTION_ORDER: BaseSectionKey[] = [
+  'summary',
+  'education',
+  'experience',
+  'projects',
+  'skills',
+  'achievements',
+];
+
+const BASE_SECTION_LOOKUP = new Set<BaseSectionKey>(DEFAULT_SECTION_ORDER);
+const CUSTOM_SECTION_TOKEN_PREFIX = 'custom:';
+const LEGACY_CUSTOM_SECTION_TOKEN = 'custom';
+
+function isBaseSectionKey(token: string): token is BaseSectionKey {
+  return BASE_SECTION_LOOKUP.has(token as BaseSectionKey);
+}
+
+function getCustomSectionToken(id: number): `custom:${number}` {
+  return `custom:${id}`;
+}
+
+function getCustomSectionIdFromToken(token: string): number | null {
+  if (!token.startsWith(CUSTOM_SECTION_TOKEN_PREFIX)) return null;
+
+  const rawId = token.slice(CUSTOM_SECTION_TOKEN_PREFIX.length);
+  const id = Number(rawId);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function resolveSectionOrder(sectionOrder: string[] | undefined, customSections: CustomSection[]): SectionOrderToken[] {
+  const customTokens = customSections.map((section) => getCustomSectionToken(section.id));
+  const validCustomTokenSet = new Set<string>(customTokens);
+  const seen = new Set<string>();
+  const resolved: string[] = [];
+
+  const appendToken = (token: string) => {
+    if (seen.has(token)) return;
+    seen.add(token);
+    resolved.push(token);
+  };
+
+  for (const rawToken of sectionOrder || []) {
+    if (isBaseSectionKey(rawToken)) {
+      appendToken(rawToken);
+      continue;
+    }
+
+    if (rawToken === LEGACY_CUSTOM_SECTION_TOKEN) {
+      for (const customToken of customTokens) {
+        appendToken(customToken);
+      }
+      continue;
+    }
+
+    if (validCustomTokenSet.has(rawToken)) {
+      appendToken(rawToken);
+    }
+  }
+
+  for (const baseSection of DEFAULT_SECTION_ORDER) {
+    appendToken(baseSection);
+  }
+
+  for (const customToken of customTokens) {
+    appendToken(customToken);
+  }
+
+  return resolved as SectionOrderToken[];
+}
+
+const normalizeCustomSectionItems = (items?: CustomSectionItem[]): CustomSectionItem[] => {
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item, index) => ({
+    id: typeof item?.id === 'number' && item.id > 0 ? item.id : index + 1,
+    title: typeof item?.title === 'string' ? item.title : '',
+    subtitle: typeof item?.subtitle === 'string' ? item.subtitle : '',
+    startDate: typeof item?.startDate === 'string' ? item.startDate : '',
+    endDate: typeof item?.endDate === 'string' ? item.endDate : '',
+    isCurrent: item?.isCurrent === true,
+    description: typeof item?.description === 'string' ? item.description : '',
+  }));
+};
+
+const hasCustomSectionExperienceContent = (section: CustomSection): boolean =>
+  normalizeCustomSectionItems(section.items).some((item) =>
+    item.title.trim() ||
+    item.subtitle.trim() ||
+    item.startDate.trim() ||
+    item.endDate.trim() ||
+    item.description.trim(),
+  );
 
 // Register Font Times New Roman (Wajib buat Harvard Style)
 Font.register({
@@ -192,6 +303,147 @@ export const HarvardCV = ({ data }: { data: CVData }) => {
     ? data.personalInfo.linkedin.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '') 
     : '';
 
+  const orderedSections = resolveSectionOrder(data.sectionOrder, data.customSections);
+  const customSectionsWithContent = data.customSections
+    .filter((section) => {
+      const mode: CustomSectionMode = section.mode === 'experience' ? 'experience' : 'simple';
+      if (mode === 'experience') {
+        return section.title.trim() || hasCustomSectionExperienceContent(section);
+      }
+
+      return section.title.trim() || section.content.trim();
+    });
+  const customSectionsById = new Map(customSectionsWithContent.map((section) => [section.id, section]));
+
+  const sectionContent: Record<BaseSectionKey, React.ReactNode> = {
+    summary: data.personalInfo.summary
+      ? (
+        <View key="summary">
+          <Text style={styles.sectionTitle}>Summary</Text>
+          <Text style={{ textAlign: 'justify' }}>{data.personalInfo.summary}</Text>
+        </View>
+      )
+      : null,
+    education: data.educations.length > 0
+      ? (
+        <View key="education">
+          <Text style={styles.sectionTitle}>Education</Text>
+          {data.educations.map((edu) => (
+            <View key={edu.id} style={{ marginBottom: 8 }}>
+              <View style={styles.row}>
+                <Text style={styles.bold}>{edu.school}</Text>
+                <Text>{formatDateRange(edu.startDate, edu.endDate, edu.isCurrent)}</Text>
+              </View>
+              <View style={styles.row}>
+                <Text style={styles.italic}>
+                  {edu.major} {edu.gpa ? `| GPA: ${edu.gpa}` : ''}
+                </Text>
+              </View>
+              <BulletList text={edu.description || ''} />
+            </View>
+          ))}
+        </View>
+      )
+      : null,
+    experience: data.experiences.length > 0
+      ? (
+        <View key="experience">
+          <Text style={styles.sectionTitle}>Experience</Text>
+          {data.experiences.map((exp) => (
+            <View key={exp.id} style={{ marginBottom: 10 }}>
+              <View style={styles.row}>
+                <Text style={styles.bold}>{exp.role}, {exp.company}</Text>
+                <Text>{formatDateRange(exp.startDate, exp.endDate, exp.isCurrent)}</Text>
+              </View>
+              <BulletList text={exp.description} />
+            </View>
+          ))}
+        </View>
+      )
+      : null,
+    projects: data.projects.length > 0
+      ? (
+        <View key="projects">
+          <Text style={styles.sectionTitle}>Projects</Text>
+          {data.projects.map((proj) => (
+            <View key={proj.id} style={{ marginBottom: 8 }}>
+              <View style={styles.row}>
+                <Text style={styles.bold}>{proj.name} | {proj.role}</Text>
+                <Text>{formatDateRange(proj.startDate, proj.endDate)}</Text>
+              </View>
+              <BulletList text={proj.description} />
+            </View>
+          ))}
+        </View>
+      )
+      : null,
+    skills: (data.skills.hard || data.skills.soft)
+      ? (
+        <View key="skills">
+          <Text style={styles.sectionTitle}>Skills</Text>
+          {data.skills.hard && (
+            <Text style={{ marginBottom: 3 }}>
+              <Text style={styles.bold}>Hard Skills: </Text> {data.skills.hard}
+            </Text>
+          )}
+          {data.skills.soft && (
+            <Text>
+              <Text style={styles.bold}>Soft Skills: </Text> {data.skills.soft}
+            </Text>
+          )}
+        </View>
+      )
+      : null,
+    achievements: data.achievements.length > 0 && data.achievements[0].name !== ''
+      ? (
+        <View key="achievements">
+          <Text style={styles.sectionTitle}>Honors & Awards</Text>
+          {data.achievements.map((ach) => (
+            <View key={ach.id} style={styles.bulletPoint}>
+              <Text style={styles.bullet}>•</Text>
+              <Text style={styles.bulletText}>
+                {ach.name} {ach.year ? `(${ach.year})` : ''}
+              </Text>
+            </View>
+          ))}
+        </View>
+      )
+      : null,
+  };
+
+  const renderCustomSection = (section: CustomSection): React.ReactNode => {
+    const mode: CustomSectionMode = section.mode === 'experience' ? 'experience' : 'simple';
+    const entries = normalizeCustomSectionItems(section.items).filter((item) =>
+      item.title.trim() ||
+      item.subtitle.trim() ||
+      item.startDate.trim() ||
+      item.endDate.trim() ||
+      item.description.trim(),
+    );
+
+    return (
+      <View key={`custom-${section.id}`}>
+        <Text style={styles.sectionTitle}>{section.title || 'Custom Section'}</Text>
+        {mode === 'experience' && entries.length > 0
+          ? entries.map((entry) => {
+            const dateRange = formatDateRange(entry.startDate, entry.endDate, entry.isCurrent);
+            const entryHeading = [entry.title.trim(), entry.subtitle.trim()].filter(Boolean).join(', ');
+
+            return (
+              <View key={`custom-entry-${section.id}-${entry.id}`} style={{ marginBottom: 8 }}>
+                <View style={styles.row}>
+                  <Text style={styles.bold}>{entryHeading || 'Entry'}</Text>
+                  <Text>{dateRange}</Text>
+                </View>
+                <BulletList text={entry.description} />
+              </View>
+            );
+          })
+          : <BulletList text={section.content} />}
+      </View>
+    );
+  };
+
   return (
     <Document>
       <Page size="A4" style={styles.page}>
@@ -204,107 +456,17 @@ export const HarvardCV = ({ data }: { data: CVData }) => {
           </Text>
         </View>
 
-        {/* SUMMARY */}
-        {data.personalInfo.summary && (
-          <View>
-            <Text style={styles.sectionTitle}>Summary</Text>
-            <Text style={{ textAlign: 'justify' }}>{data.personalInfo.summary}</Text>
-          </View>
-        )}
+        {orderedSections.map((sectionKey) => {
+          if (isBaseSectionKey(sectionKey)) {
+            return sectionContent[sectionKey];
+          }
 
-        {/* EDUCATION */}
-        {data.educations.length > 0 && (
-          <View>
-            <Text style={styles.sectionTitle}>Education</Text>
-            {data.educations.map((edu) => (
-              <View key={edu.id} style={{ marginBottom: 8 }}>
-                <View style={styles.row}>
-                  <Text style={styles.bold}>{edu.school}</Text>
-                  <Text>{formatDateRange(edu.startDate, edu.endDate, edu.isCurrent)}</Text>
-                </View>
-                <View style={styles.row}>
-                  <Text style={styles.italic}>
-                    {edu.major} {edu.gpa ? `| GPA: ${edu.gpa}` : ''}
-                  </Text>
-                </View>
-                <BulletList text={edu.description || ''} />
-              </View>
-            ))}
-          </View>
-        )}
+          const customId = getCustomSectionIdFromToken(sectionKey);
+          if (!customId) return null;
 
-        {/* EXPERIENCE */}
-        {data.experiences.length > 0 && (
-          <View>
-            <Text style={styles.sectionTitle}>Experience</Text>
-            {data.experiences.map((exp) => (
-              <View key={exp.id} style={{ marginBottom: 10 }}>
-                <View style={styles.row}>
-                  <Text style={styles.bold}>{exp.role}, {exp.company}</Text>
-                  <Text>{formatDateRange(exp.startDate, exp.endDate, exp.isCurrent)}</Text>
-                </View>
-                <BulletList text={exp.description} />
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* PROJECTS */}
-        {data.projects.length > 0 && (
-          <View>
-            <Text style={styles.sectionTitle}>Projects</Text>
-            {data.projects.map((proj) => (
-              <View key={proj.id} style={{ marginBottom: 8 }}>
-                <View style={styles.row}>
-                  <Text style={styles.bold}>{proj.name} | {proj.role}</Text>
-                  <Text>{formatDateRange(proj.startDate, proj.endDate)}</Text>
-                </View>
-                <BulletList text={proj.description} />
-              </View>
-            ))}
-          </View>
-        )}
-
-        {/* SKILLS (Dipisah dari Awards) */}
-        {(data.skills.hard || data.skills.soft) && (
-          <View>
-            <Text style={styles.sectionTitle}>Skills</Text>
-            {data.skills.hard && (
-              <Text style={{ marginBottom: 3 }}>
-                <Text style={styles.bold}>Hard Skills: </Text> {data.skills.hard}
-              </Text>
-            )}
-            {data.skills.soft && (
-              <Text>
-                <Text style={styles.bold}>Soft Skills: </Text> {data.skills.soft}
-              </Text>
-            )}
-          </View>
-        )}
-
-        {/* AWARDS (Judul Sendiri) */}
-        {data.achievements.length > 0 && data.achievements[0].name !== '' && (
-          <View>
-            <Text style={styles.sectionTitle}>Honors & Awards</Text>
-            {data.achievements.map((ach) => (
-               <View key={ach.id} style={styles.bulletPoint}>
-                 <Text style={styles.bullet}>•</Text>
-                 <Text style={styles.bulletText}>
-                   {ach.name} {ach.year ? `(${ach.year})` : ''}
-                 </Text>
-               </View>
-            ))}
-          </View>
-        )}
-
-        {data.customSections
-          .filter((section) => section.title.trim() || section.content.trim())
-          .map((section) => (
-            <View key={section.id}>
-              <Text style={styles.sectionTitle}>{section.title || 'Custom Section'}</Text>
-              <BulletList text={section.content} />
-            </View>
-          ))}
+          const customSection = customSectionsById.get(customId);
+          return customSection ? renderCustomSection(customSection) : null;
+        })}
 
       </Page>
     </Document>

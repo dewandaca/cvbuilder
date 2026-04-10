@@ -1,16 +1,16 @@
 'use client'
 
 import { useState } from 'react';
-import { reviewCV } from '../actions';
+import { reviewCvApi } from '@/lib/llamaApiClient';
 import { 
   UploadCloud, XCircle, ArrowLeft, Loader2, 
-  Search, Wand2, Target, FileText, AlertTriangle, ChevronRight, ListChecks, BarChart3,
+  Search, Wand2, Target, FileText, AlertTriangle, ChevronRight, ListChecks, ThumbsUp, ThumbsDown,
   Zap, ShieldCheck
 } from 'lucide-react';
 import Link from 'next/link';
 
-type ImpactLevel = 'High' | 'Medium' | 'Low';
-type EffortLevel = 'Low' | 'Medium' | 'High';
+type ImpactLevel = string;
+type EffortLevel = string;
 
 type MagicRewrite = {
   original: string;
@@ -26,26 +26,27 @@ type PrioritizedAction = {
   example: string;
 };
 
+type DetectedRole = {
+  role: string;
+  fit_score?: number;
+  reason?: string;
+};
+
 type CVReviewResult = {
   executive_summary: string;
   ats_analysis?: {
     score?: number;
     detected_role?: string;
+    detected_roles?: DetectedRole[];
     missing_keywords?: string[];
   };
   red_flags?: string[];
   section_audit?: {
     summary?: string;
     experience?: string;
-    formatting?: string;
   };
-  section_scores?: {
-    summary?: number;
-    experience?: number;
-    skills?: number;
-    education?: number;
-    formatting?: number;
-  };
+  strengths?: string[];
+  weaknesses?: string[];
   prioritized_actions?: PrioritizedAction[];
   magic_rewrites?: MagicRewrite[];
 };
@@ -54,6 +55,20 @@ export default function CvReviewer() {
   const [file, setFile] = useState<File | null>(null);
   const [loading, setLoading] = useState(false);
   const [result, setResult] = useState<CVReviewResult | null>(null);
+
+  const detectedRoles = result?.ats_analysis?.detected_roles?.filter((item) => item?.role?.trim()) || [];
+  const roleSuggestions =
+    detectedRoles.length > 0
+      ? detectedRoles
+      : result?.ats_analysis?.detected_role
+        ? [{ role: result.ats_analysis.detected_role }]
+        : [];
+  const strengths = Array.isArray(result?.strengths)
+    ? result.strengths.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
+  const weaknesses = Array.isArray(result?.weaknesses)
+    ? result.weaknesses.filter((item): item is string => typeof item === 'string' && item.trim().length > 0)
+    : [];
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     if (e.target.files && e.target.files[0]) setFile(e.target.files[0]);
@@ -66,27 +81,35 @@ export default function CvReviewer() {
     formData.append('file', file);
 
     try {
-      const data = await reviewCV(formData);
+      const data = await reviewCvApi<CVReviewResult>(formData);
       if (data) setResult(data as CVReviewResult);
       else alert("Gagal membaca CV. Pastikan format PDF teks.");
     } catch { alert("Terjadi kesalahan sistem."); } finally { setLoading(false); }
   };
 
-  const getScoreColor = (score: number) => {
-    if (score >= 80) return 'text-green-600 border-green-500 bg-green-50';
-    if (score >= 60) return 'text-yellow-600 border-yellow-500 bg-yellow-50';
-    return 'text-red-600 border-red-500 bg-red-50';
+  const normalizePriorityLevel = (value: string): 'high' | 'medium' | 'low' | 'unknown' => {
+    const normalized = value.trim().toLowerCase();
+    if (!normalized) return 'unknown';
+
+    if (/\b(high|tinggi)\b/.test(normalized)) return 'high';
+    if (/\b(medium|med|sedang)\b/.test(normalized)) return 'medium';
+    if (/\b(low|rendah)\b/.test(normalized)) return 'low';
+    return 'unknown';
   };
 
   const getImpactClass = (impact: string) => {
-    if (impact === 'High') return 'bg-red-100 text-red-700 border-red-200';
-    if (impact === 'Medium') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    const level = normalizePriorityLevel(impact);
+    if (level === 'high') return 'bg-red-100 text-red-700 border-red-200';
+    if (level === 'medium') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    if (level === 'low') return 'bg-slate-100 text-slate-700 border-slate-200';
     return 'bg-slate-100 text-slate-700 border-slate-200';
   };
 
   const getEffortClass = (effort: string) => {
-    if (effort === 'Low') return 'bg-green-100 text-green-700 border-green-200';
-    if (effort === 'Medium') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    const level = normalizePriorityLevel(effort);
+    if (level === 'low') return 'bg-green-100 text-green-700 border-green-200';
+    if (level === 'medium') return 'bg-yellow-100 text-yellow-700 border-yellow-200';
+    if (level === 'high') return 'bg-red-100 text-red-700 border-red-200';
     return 'bg-slate-100 text-slate-700 border-slate-200';
   };
 
@@ -118,7 +141,7 @@ export default function CvReviewer() {
             </h2>
             <p className="text-lg text-slate-600 max-w-2xl mx-auto leading-relaxed">
               Upload CV Anda (PDF) dan biarkan AI kami memberikan penilaian yang jujur tanpa ampun. 
-              Mulai dari deteksi ATS, analisis kualitas tiap section, hingga saran penulisan ulang secara instan.
+              Mulai dari deteksi ATS, analisis kelebihan dan kekurangan utama, hingga saran penulisan ulang secara instan.
             </p>
           </div>
         )}
@@ -215,7 +238,27 @@ export default function CvReviewer() {
               <div className="relative z-10 grid md:grid-cols-2 gap-8 items-center">
                  <div>
                     <h3 className="text-2xl font-bold flex items-center gap-3 mb-2"><Search className="text-blue-400"/> ATS Analysis</h3>
-                    <p className="text-slate-400 mb-6">Role Detected: <span className="text-white font-bold bg-slate-800 px-2 py-1 rounded">{result.ats_analysis?.detected_role || 'General'}</span></p>
+                    <p className="text-slate-400 mb-3">Role Recommendations:</p>
+                    <div className="flex flex-wrap gap-2 mb-6">
+                      {roleSuggestions.length > 0 ? roleSuggestions.map((item: DetectedRole, i: number) => (
+                        <span key={`${item.role}-${i}`} className="text-white font-bold bg-slate-800 px-3 py-1.5 rounded-lg text-sm">
+                          {item.role}{typeof item.fit_score === 'number' ? ` (${item.fit_score}%)` : ''}
+                        </span>
+                      )) : (
+                        <span className="text-white font-bold bg-slate-800 px-3 py-1.5 rounded-lg text-sm">General</span>
+                      )}
+                    </div>
+                    {roleSuggestions.some((item) => item.reason) && (
+                      <div className="space-y-2 mb-6">
+                        {roleSuggestions.map((item: DetectedRole, i: number) => (
+                          item.reason ? (
+                            <p key={`reason-${item.role}-${i}`} className="text-xs text-slate-300 leading-relaxed">
+                              <span className="font-semibold text-slate-200">{item.role}:</span> {item.reason}
+                            </p>
+                          ) : null
+                        ))}
+                      </div>
+                    )}
                     <div className="space-y-3">
                       <p className="text-xs font-bold text-slate-500 uppercase tracking-widest">MISSING KEYWORDS</p>
                       <div className="flex flex-wrap gap-2">
@@ -273,20 +316,48 @@ export default function CvReviewer() {
                 </ul>
             </div>
 
-            {/* 5. SECTION SCORES */}
+            {/* 5. STRENGTHS & WEAKNESSES */}
             <div className="bg-white p-8 rounded-3xl border border-slate-200 shadow-sm">
               <h3 className="text-2xl font-bold text-slate-900 mb-6 flex items-center gap-2">
-                <BarChart3 className="text-blue-600"/> Section Scores
+                <ListChecks className="text-blue-600"/> Kelebihan & Kekurangan CV
               </h3>
-              <div className="grid sm:grid-cols-2 lg:grid-cols-5 gap-4">
-                {Object.entries(result.section_scores || {}).map(([section, score]: [string, number | undefined]) => (
-                  <div key={section} className={`rounded-2xl border-2 p-4 ${getScoreColor(Number(score))}`}>
-                    <p className="text-xs uppercase tracking-wider opacity-70 mb-1">{section}</p>
-                    <p className="text-3xl font-black leading-none">{Number(score) || 0}</p>
-                  </div>
-                ))}
+              <div className="grid md:grid-cols-2 gap-4">
+                <div className="bg-green-50/60 rounded-2xl p-5 border border-green-100">
+                  <h4 className="font-semibold text-green-800 mb-3 flex items-center gap-2">
+                    <ThumbsUp size={18}/> Kelebihan
+                  </h4>
+                  {strengths.length > 0 ? (
+                    <ul className="space-y-2">
+                      {strengths.map((item: string, i: number) => (
+                        <li key={`strength-${i}`} className="flex items-start gap-2 text-slate-700">
+                          <span className="text-green-600 mt-0.5">•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-slate-600 text-sm">Belum ada ringkasan kelebihan.</p>
+                  )}
+                </div>
+                <div className="bg-amber-50/70 rounded-2xl p-5 border border-amber-100">
+                  <h4 className="font-semibold text-amber-800 mb-3 flex items-center gap-2">
+                    <ThumbsDown size={18}/> Kekurangan
+                  </h4>
+                  {weaknesses.length > 0 ? (
+                    <ul className="space-y-2">
+                      {weaknesses.map((item: string, i: number) => (
+                        <li key={`weakness-${i}`} className="flex items-start gap-2 text-slate-700">
+                          <span className="text-amber-600 mt-0.5">•</span>
+                          <span>{item}</span>
+                        </li>
+                      ))}
+                    </ul>
+                  ) : (
+                    <p className="text-slate-600 text-sm">Belum ada ringkasan kekurangan.</p>
+                  )}
+                </div>
               </div>
-              <div className="grid md:grid-cols-3 gap-4 mt-6 text-sm">
+              <div className="grid md:grid-cols-2 gap-4 mt-6 text-sm">
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                   <p className="font-semibold text-slate-800 mb-1">Summary</p>
                   <p className="text-slate-600">{result.section_audit?.summary || 'Belum ada evaluasi.'}</p>
@@ -294,10 +365,6 @@ export default function CvReviewer() {
                 <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
                   <p className="font-semibold text-slate-800 mb-1">Experience</p>
                   <p className="text-slate-600">{result.section_audit?.experience || 'Belum ada evaluasi.'}</p>
-                </div>
-                <div className="bg-slate-50 rounded-xl p-4 border border-slate-100">
-                  <p className="font-semibold text-slate-800 mb-1">Formatting</p>
-                  <p className="text-slate-600">{result.section_audit?.formatting || 'Belum ada evaluasi.'}</p>
                 </div>
               </div>
             </div>

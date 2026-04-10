@@ -1,12 +1,12 @@
 'use client'
 
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { extractCvToBuilderData, polishText } from '../actions';
+import { extractCvToBuilderDataApi, polishTextApi } from '@/lib/llamaApiClient';
 import { HarvardCV } from '@/components/HarvardCV';
 import { pdf } from '@react-pdf/renderer';
 import { 
   Plus, Trash2, Loader2, Save, ArrowLeft, 
-  Briefcase, GraduationCap, Trophy, Code, FolderGit2, Sparkles, UploadCloud
+  Briefcase, GraduationCap, Trophy, Code, FolderGit2, Sparkles, UploadCloud, ArrowUp, ArrowDown, Eye, X
 } from 'lucide-react';
 import Link from 'next/link';
 
@@ -15,7 +15,25 @@ type Education = { id: number; school: string; major: string; gpa: string; start
 type Experience = { id: number; role: string; company: string; startDate: string; endDate: string; isCurrent: boolean; description: string; };
 type Project = { id: number; name: string; role: string; startDate: string; endDate: string; description: string; };
 type Achievement = { id: number; name: string; year: string; };
-type CustomSection = { id: number; title: string; content: string; };
+type CustomSectionMode = 'simple' | 'experience';
+type CustomSectionItem = {
+  id: number;
+  title: string;
+  subtitle: string;
+  startDate: string;
+  endDate: string;
+  isCurrent: boolean;
+  description: string;
+};
+type CustomSection = {
+  id: number;
+  title: string;
+  content: string;
+  mode?: CustomSectionMode;
+  items?: CustomSectionItem[];
+};
+type BaseSectionKey = 'summary' | 'education' | 'experience' | 'projects' | 'skills' | 'achievements';
+type SectionOrderToken = BaseSectionKey | `custom:${number}`;
 type CVData = {
   personalInfo: {
     fullName: string;
@@ -33,7 +51,100 @@ type CVData = {
     hard: string;
     soft: string;
   };
+  sectionOrder?: string[];
 };
+
+const DEFAULT_SECTION_ORDER: BaseSectionKey[] = [
+  'summary',
+  'education',
+  'experience',
+  'projects',
+  'skills',
+  'achievements',
+];
+
+const SECTION_ORDER_LABELS: Record<BaseSectionKey, string> = {
+  summary: 'Summary',
+  education: 'Education',
+  experience: 'Work Experience',
+  projects: 'Projects',
+  skills: 'Skills',
+  achievements: 'Honors & Awards',
+};
+
+const BASE_SECTION_LOOKUP = new Set<BaseSectionKey>(DEFAULT_SECTION_ORDER);
+const CUSTOM_SECTION_TOKEN_PREFIX = 'custom:';
+const LEGACY_CUSTOM_SECTION_TOKEN = 'custom';
+
+function isBaseSectionKey(token: string): token is BaseSectionKey {
+  return BASE_SECTION_LOOKUP.has(token as BaseSectionKey);
+}
+
+function getCustomSectionToken(id: number): `custom:${number}` {
+  return `custom:${id}`;
+}
+
+function getCustomSectionIdFromToken(token: string): number | null {
+  if (!token.startsWith(CUSTOM_SECTION_TOKEN_PREFIX)) return null;
+
+  const rawId = token.slice(CUSTOM_SECTION_TOKEN_PREFIX.length);
+  const id = Number(rawId);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+function resolveSectionOrder(sectionOrder: string[] | undefined, customSections: CustomSection[]): SectionOrderToken[] {
+  const customTokens = customSections.map((section) => getCustomSectionToken(section.id));
+  const validCustomTokenSet = new Set<string>(customTokens);
+  const seen = new Set<string>();
+  const resolved: string[] = [];
+
+  const appendToken = (token: string) => {
+    if (seen.has(token)) return;
+    seen.add(token);
+    resolved.push(token);
+  };
+
+  for (const rawToken of sectionOrder || []) {
+    if (isBaseSectionKey(rawToken)) {
+      appendToken(rawToken);
+      continue;
+    }
+
+    if (rawToken === LEGACY_CUSTOM_SECTION_TOKEN) {
+      for (const customToken of customTokens) {
+        appendToken(customToken);
+      }
+      continue;
+    }
+
+    if (validCustomTokenSet.has(rawToken)) {
+      appendToken(rawToken);
+    }
+  }
+
+  for (const baseSection of DEFAULT_SECTION_ORDER) {
+    appendToken(baseSection);
+  }
+
+  for (const customToken of customTokens) {
+    appendToken(customToken);
+  }
+
+  return resolved as SectionOrderToken[];
+}
+
+function getSectionOrderLabel(token: SectionOrderToken, customSections: CustomSection[]): string {
+  if (isBaseSectionKey(token)) {
+    return SECTION_ORDER_LABELS[token];
+  }
+
+  const customId = getCustomSectionIdFromToken(token);
+  if (!customId) return 'Custom Section';
+
+  const section = customSections.find((item) => item.id === customId);
+  const title = section?.title.trim();
+  return title ? `Custom: ${title}` : `Custom Section #${customId}`;
+}
 
 const formatDateRangePreview = (startDate?: string, endDate?: string, isCurrent?: boolean) => {
   const start = startDate?.trim();
@@ -64,6 +175,62 @@ const parseBulletItemsPreview = (text: string) => {
   return items.length > 0 ? items : [text.trim()];
 };
 
+const createEmptyCustomSectionItem = (id: number): CustomSectionItem => ({
+  id,
+  title: '',
+  subtitle: '',
+  startDate: '',
+  endDate: '',
+  isCurrent: false,
+  description: '',
+});
+
+const normalizeCustomSectionItems = (items?: CustomSectionItem[]): CustomSectionItem[] => {
+  if (!Array.isArray(items)) return [];
+
+  return items.map((item, index) => {
+    const fallback = createEmptyCustomSectionItem(index + 1);
+    const id = typeof item?.id === 'number' && item.id > 0 ? item.id : index + 1;
+
+    return {
+      ...fallback,
+      ...item,
+      id,
+      title: typeof item?.title === 'string' ? item.title : '',
+      subtitle: typeof item?.subtitle === 'string' ? item.subtitle : '',
+      startDate: typeof item?.startDate === 'string' ? item.startDate : '',
+      endDate: typeof item?.endDate === 'string' ? item.endDate : '',
+      description: typeof item?.description === 'string' ? item.description : '',
+      isCurrent: item?.isCurrent === true,
+    };
+  });
+};
+
+const normalizeCustomSections = (sections?: CustomSection[]): CustomSection[] => {
+  if (!Array.isArray(sections)) return [];
+
+  return sections.map((section, index) => {
+    const id = typeof section?.id === 'number' && section.id > 0 ? section.id : index + 1;
+
+    return {
+      id,
+      title: typeof section?.title === 'string' ? section.title : '',
+      content: typeof section?.content === 'string' ? section.content : '',
+      mode: section?.mode === 'experience' ? 'experience' : 'simple',
+      items: normalizeCustomSectionItems(section?.items),
+    };
+  });
+};
+
+const hasCustomSectionExperienceContent = (section: CustomSection): boolean =>
+  normalizeCustomSectionItems(section.items).some((item) =>
+    item.title.trim() ||
+    item.subtitle.trim() ||
+    item.startDate.trim() ||
+    item.endDate.trim() ||
+    item.description.trim(),
+  );
+
 const PreviewSectionTitle = ({ children }: { children: string }) => (
   <h3 className="mt-4 mb-2 border-b border-black pb-0.5 text-[11px] font-bold uppercase tracking-wide text-black">
     {children}
@@ -91,6 +258,195 @@ const HarvardCVLivePreview = ({ data }: { data: CVData }) => {
     ? data.personalInfo.linkedin.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
     : '';
 
+  const orderedSections = resolveSectionOrder(data.sectionOrder, data.customSections);
+  const customSectionsWithContent = data.customSections
+    .filter((section) => {
+      const mode: CustomSectionMode = section.mode === 'experience' ? 'experience' : 'simple';
+      if (mode === 'experience') {
+        return section.title.trim() || hasCustomSectionExperienceContent(section);
+      }
+
+      return section.title.trim() || section.content.trim();
+    });
+  const customSectionsById = new Map(customSectionsWithContent.map((section) => [section.id, section]));
+
+  const sectionContent: Record<BaseSectionKey, React.ReactNode> = {
+    summary: data.personalInfo.summary.trim()
+      ? (
+        <section key="summary">
+          <PreviewSectionTitle>Summary</PreviewSectionTitle>
+          <p className="text-[10.5px] leading-[1.45] text-justify">{data.personalInfo.summary}</p>
+        </section>
+      )
+      : null,
+    education: data.educations.length > 0
+      ? (
+        <section key="education">
+          <PreviewSectionTitle>Education</PreviewSectionTitle>
+          {data.educations.map((education) => {
+            const bullets = parseBulletItemsPreview(education.description);
+            const dateRange = formatDateRangePreview(education.startDate, education.endDate, education.isCurrent);
+
+            return (
+              <div key={education.id} className="mb-2 text-[10.5px] leading-[1.4]">
+                <div className="flex items-end justify-between gap-4">
+                  <p className="font-bold">{education.school}</p>
+                  <p>{dateRange}</p>
+                </div>
+                <p className="italic">
+                  {education.major}
+                  {education.gpa ? ` | GPA: ${education.gpa}` : ''}
+                </p>
+                {bullets.length > 0 && (
+                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
+                    {bullets.map((item, index) => (
+                      <li key={`${education.id}-${index}`}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      )
+      : null,
+    experience: data.experiences.length > 0
+      ? (
+        <section key="experience">
+          <PreviewSectionTitle>Experience</PreviewSectionTitle>
+          {data.experiences.map((experience) => {
+            const bullets = parseBulletItemsPreview(experience.description);
+            const dateRange = formatDateRangePreview(experience.startDate, experience.endDate, experience.isCurrent);
+
+            return (
+              <div key={experience.id} className="mb-2 text-[10.5px] leading-[1.4]">
+                <div className="flex items-end justify-between gap-4">
+                  <p className="font-bold">{experience.role}, {experience.company}</p>
+                  <p>{dateRange}</p>
+                </div>
+                {bullets.length > 0 && (
+                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
+                    {bullets.map((item, index) => (
+                      <li key={`${experience.id}-${index}`}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      )
+      : null,
+    projects: data.projects.length > 0
+      ? (
+        <section key="projects">
+          <PreviewSectionTitle>Projects</PreviewSectionTitle>
+          {data.projects.map((project) => {
+            const bullets = parseBulletItemsPreview(project.description);
+            const dateRange = formatDateRangePreview(project.startDate, project.endDate);
+
+            return (
+              <div key={project.id} className="mb-2 text-[10.5px] leading-[1.4]">
+                <div className="flex items-end justify-between gap-4">
+                  <p className="font-bold">{project.name} | {project.role}</p>
+                  <p>{dateRange}</p>
+                </div>
+                {bullets.length > 0 && (
+                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
+                    {bullets.map((item, index) => (
+                      <li key={`${project.id}-${index}`}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })}
+        </section>
+      )
+      : null,
+    skills: (data.skills.hard.trim() || data.skills.soft.trim())
+      ? (
+        <section key="skills">
+          <PreviewSectionTitle>Skills</PreviewSectionTitle>
+          {data.skills.hard.trim() && (
+            <p className="mb-1 text-[10.5px]">
+              <span className="font-bold">Hard Skills: </span>
+              {data.skills.hard}
+            </p>
+          )}
+          {data.skills.soft.trim() && (
+            <p className="text-[10.5px]">
+              <span className="font-bold">Soft Skills: </span>
+              {data.skills.soft}
+            </p>
+          )}
+        </section>
+      )
+      : null,
+    achievements: data.achievements.length > 0 && data.achievements[0].name !== ''
+      ? (
+        <section key="achievements">
+          <PreviewSectionTitle>Honors & Awards</PreviewSectionTitle>
+          <ul className="ml-4 list-disc space-y-0.5 text-[10.5px] leading-[1.4]">
+            {data.achievements.map((achievement) => (
+              <li key={achievement.id}>
+                {achievement.name}
+                {achievement.year ? ` (${achievement.year})` : ''}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )
+      : null,
+  };
+
+  const renderCustomSection = (section: CustomSection): React.ReactNode => {
+    const mode: CustomSectionMode = section.mode === 'experience' ? 'experience' : 'simple';
+    const entries = normalizeCustomSectionItems(section.items).filter((item) =>
+      item.title.trim() ||
+      item.subtitle.trim() ||
+      item.startDate.trim() ||
+      item.endDate.trim() ||
+      item.description.trim(),
+    );
+    const bullets = parseBulletItemsPreview(section.content);
+
+    return (
+      <section key={`custom-${section.id}`}>
+        <PreviewSectionTitle>{section.title || 'Custom Section'}</PreviewSectionTitle>
+        {mode === 'experience' && entries.length > 0
+          ? entries.map((entry) => {
+            const dateRange = formatDateRangePreview(entry.startDate, entry.endDate, entry.isCurrent);
+            const entryHeading = [entry.title.trim(), entry.subtitle.trim()].filter(Boolean).join(', ');
+            const entryBullets = parseBulletItemsPreview(entry.description);
+
+            return (
+              <div key={`custom-entry-${section.id}-${entry.id}`} className="mb-2 text-[10.5px] leading-[1.4]">
+                <div className="flex items-end justify-between gap-4">
+                  <p className="font-bold">{entryHeading || 'Entry'}</p>
+                  <p>{dateRange}</p>
+                </div>
+                {entryBullets.length > 0 && (
+                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
+                    {entryBullets.map((item, index) => (
+                      <li key={`custom-entry-bullet-${section.id}-${entry.id}-${index}`}>{item}</li>
+                    ))}
+                  </ul>
+                )}
+              </div>
+            );
+          })
+          : bullets.length > 0 && (
+            <ul className="ml-4 list-disc space-y-0.5 text-[10.5px] leading-[1.4]">
+              {bullets.map((item, index) => (
+                <li key={`${section.id}-${index}`}>{item}</li>
+              ))}
+            </ul>
+          )}
+      </section>
+    );
+  };
+
   return (
     <div ref={containerRef} className="bg-slate-200 p-2 overflow-hidden">
       <div
@@ -112,145 +468,17 @@ const HarvardCVLivePreview = ({ data }: { data: CVData }) => {
           </p>
         </div>
 
-        {data.personalInfo.summary.trim() && (
-          <section>
-            <PreviewSectionTitle>Summary</PreviewSectionTitle>
-            <p className="text-[10.5px] leading-[1.45] text-justify">{data.personalInfo.summary}</p>
-          </section>
-        )}
+        {orderedSections.map((sectionKey) => {
+          if (isBaseSectionKey(sectionKey)) {
+            return sectionContent[sectionKey];
+          }
 
-        {data.educations.length > 0 && (
-          <section>
-            <PreviewSectionTitle>Education</PreviewSectionTitle>
-            {data.educations.map((education) => {
-              const bullets = parseBulletItemsPreview(education.description);
-              const dateRange = formatDateRangePreview(education.startDate, education.endDate, education.isCurrent);
+          const customId = getCustomSectionIdFromToken(sectionKey);
+          if (!customId) return null;
 
-              return (
-                <div key={education.id} className="mb-2 text-[10.5px] leading-[1.4]">
-                  <div className="flex items-end justify-between gap-4">
-                    <p className="font-bold">{education.school}</p>
-                    <p>{dateRange}</p>
-                  </div>
-                  <p className="italic">
-                    {education.major}
-                    {education.gpa ? ` | GPA: ${education.gpa}` : ''}
-                  </p>
-                  {bullets.length > 0 && (
-                    <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                      {bullets.map((item, index) => (
-                        <li key={`${education.id}-${index}`}>{item}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </section>
-        )}
-
-        {data.experiences.length > 0 && (
-          <section>
-            <PreviewSectionTitle>Experience</PreviewSectionTitle>
-            {data.experiences.map((experience) => {
-              const bullets = parseBulletItemsPreview(experience.description);
-              const dateRange = formatDateRangePreview(experience.startDate, experience.endDate, experience.isCurrent);
-
-              return (
-                <div key={experience.id} className="mb-2 text-[10.5px] leading-[1.4]">
-                  <div className="flex items-end justify-between gap-4">
-                    <p className="font-bold">{experience.role}, {experience.company}</p>
-                    <p>{dateRange}</p>
-                  </div>
-                  {bullets.length > 0 && (
-                    <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                      {bullets.map((item, index) => (
-                        <li key={`${experience.id}-${index}`}>{item}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </section>
-        )}
-
-        {data.projects.length > 0 && (
-          <section>
-            <PreviewSectionTitle>Projects</PreviewSectionTitle>
-            {data.projects.map((project) => {
-              const bullets = parseBulletItemsPreview(project.description);
-              const dateRange = formatDateRangePreview(project.startDate, project.endDate);
-
-              return (
-                <div key={project.id} className="mb-2 text-[10.5px] leading-[1.4]">
-                  <div className="flex items-end justify-between gap-4">
-                    <p className="font-bold">{project.name} | {project.role}</p>
-                    <p>{dateRange}</p>
-                  </div>
-                  {bullets.length > 0 && (
-                    <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                      {bullets.map((item, index) => (
-                        <li key={`${project.id}-${index}`}>{item}</li>
-                      ))}
-                    </ul>
-                  )}
-                </div>
-              );
-            })}
-          </section>
-        )}
-
-        {(data.skills.hard.trim() || data.skills.soft.trim()) && (
-          <section>
-            <PreviewSectionTitle>Skills</PreviewSectionTitle>
-            {data.skills.hard.trim() && (
-              <p className="mb-1 text-[10.5px]">
-                <span className="font-bold">Hard Skills: </span>
-                {data.skills.hard}
-              </p>
-            )}
-            {data.skills.soft.trim() && (
-              <p className="text-[10.5px]">
-                <span className="font-bold">Soft Skills: </span>
-                {data.skills.soft}
-              </p>
-            )}
-          </section>
-        )}
-
-        {data.achievements.length > 0 && data.achievements[0].name !== '' && (
-          <section>
-            <PreviewSectionTitle>Honors & Awards</PreviewSectionTitle>
-            <ul className="ml-4 list-disc space-y-0.5 text-[10.5px] leading-[1.4]">
-              {data.achievements.map((achievement) => (
-                <li key={achievement.id}>
-                  {achievement.name}
-                  {achievement.year ? ` (${achievement.year})` : ''}
-                </li>
-              ))}
-            </ul>
-          </section>
-        )}
-
-        {data.customSections
-          .filter((section) => section.title.trim() || section.content.trim())
-          .map((section) => {
-            const bullets = parseBulletItemsPreview(section.content);
-
-            return (
-              <section key={section.id}>
-                <PreviewSectionTitle>{section.title || 'Custom Section'}</PreviewSectionTitle>
-                {bullets.length > 0 && (
-                  <ul className="ml-4 list-disc space-y-0.5 text-[10.5px] leading-[1.4]">
-                    {bullets.map((item, index) => (
-                      <li key={`${section.id}-${index}`}>{item}</li>
-                    ))}
-                  </ul>
-                )}
-              </section>
-            );
-          })}
+          const customSection = customSectionsById.get(customId);
+          return customSection ? renderCustomSection(customSection) : null;
+        })}
       </div>
     </div>
   );
@@ -264,11 +492,18 @@ const createEmptyEducation = (id: number): Education => ({ id, school: '', major
 const createEmptyExperience = (id: number): Experience => ({ id, role: '', company: '', startDate: '', endDate: '', isCurrent: false, description: '' });
 const createEmptyProject = (id: number): Project => ({ id, name: '', role: '', startDate: '', endDate: '', description: '' });
 const createEmptyAchievement = (id: number): Achievement => ({ id, name: '', year: '' });
+const createEmptyCustomSection = (): Omit<CustomSection, 'id'> => ({
+  title: '',
+  content: '',
+  mode: 'simple',
+  items: [],
+});
 
 export default function CvBuilder() {
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [builderMode, setBuilderMode] = useState<'new' | 'edit'>('new');
+  const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
   const [existingCvFile, setExistingCvFile] = useState<File | null>(null);
   const [isImportingCv, setIsImportingCv] = useState(false);
   const [importNotice, setImportNotice] = useState('');
@@ -281,10 +516,25 @@ export default function CvBuilder() {
   const [achievements, setAchievements] = useState<Achievement[]>([createEmptyAchievement(1)]);
   const [customSections, setCustomSections] = useState<CustomSection[]>([]);
   const [skills, setSkills] = useState({ hard: '', soft: '' });
+  const [sectionOrder, setSectionOrder] = useState<SectionOrderToken[]>(() => [...DEFAULT_SECTION_ORDER]);
+
+  const orderedSectionOrder = useMemo(
+    () => resolveSectionOrder(sectionOrder, customSections),
+    [sectionOrder, customSections],
+  );
 
   const fullData = useMemo(
-    () => ({ personalInfo, educations, experiences, projects, achievements, customSections, skills }),
-    [personalInfo, educations, experiences, projects, achievements, customSections, skills]
+    () => ({
+      personalInfo,
+      educations,
+      experiences,
+      projects,
+      achievements,
+      customSections,
+      skills,
+      sectionOrder: orderedSectionOrder,
+    }),
+    [personalInfo, educations, experiences, projects, achievements, customSections, skills, orderedSectionOrder]
   );
 
   /** 
@@ -327,6 +577,105 @@ export default function CvBuilder() {
     );
   };
 
+  const updateCustomSection = <K extends keyof CustomSection>(
+    sectionId: number,
+    key: K,
+    value: CustomSection[K],
+  ) => {
+    setCustomSections((current) =>
+      current.map((section) => (section.id === sectionId ? { ...section, [key]: value } : section)),
+    );
+  };
+
+  const setCustomSectionMode = (sectionId: number, mode: CustomSectionMode) => {
+    setCustomSections((current) =>
+      current.map((section) => {
+        if (section.id !== sectionId) return section;
+
+        if (mode === 'experience') {
+          const items = normalizeCustomSectionItems(section.items);
+          return {
+            ...section,
+            mode,
+            items: items.length > 0 ? items : [createEmptyCustomSectionItem(1)],
+          };
+        }
+
+        return {
+          ...section,
+          mode,
+          items: normalizeCustomSectionItems(section.items),
+        };
+      }),
+    );
+  };
+
+  const addCustomSectionItem = (sectionId: number) => {
+    setCustomSections((current) =>
+      current.map((section) => {
+        if (section.id !== sectionId) return section;
+
+        const items = normalizeCustomSectionItems(section.items);
+        const newId = items.length > 0 ? items[items.length - 1].id + 1 : 1;
+
+        return {
+          ...section,
+          mode: 'experience',
+          items: [...items, createEmptyCustomSectionItem(newId)],
+        };
+      }),
+    );
+  };
+
+  const updateCustomSectionItem = <K extends keyof CustomSectionItem>(
+    sectionId: number,
+    itemId: number,
+    key: K,
+    value: CustomSectionItem[K],
+  ) => {
+    setCustomSections((current) =>
+      current.map((section) => {
+        if (section.id !== sectionId) return section;
+
+        return {
+          ...section,
+          items: normalizeCustomSectionItems(section.items).map((item) =>
+            item.id === itemId ? { ...item, [key]: value } : item,
+          ),
+        };
+      }),
+    );
+  };
+
+  const removeCustomSectionItem = (sectionId: number, itemId: number) => {
+    setCustomSections((current) =>
+      current.map((section) => {
+        if (section.id !== sectionId) return section;
+
+        return {
+          ...section,
+          items: normalizeCustomSectionItems(section.items).filter((item) => item.id !== itemId),
+        };
+      }),
+    );
+  };
+
+  const moveSection = (section: SectionOrderToken, direction: -1 | 1) => {
+    setSectionOrder((current) => {
+      const normalized = resolveSectionOrder(current, customSections);
+      const fromIndex = normalized.indexOf(section);
+      const targetIndex = fromIndex + direction;
+
+      if (fromIndex < 0 || targetIndex < 0 || targetIndex >= normalized.length) {
+        return normalized;
+      }
+
+      const next = [...normalized];
+      [next[fromIndex], next[targetIndex]] = [next[targetIndex], next[fromIndex]];
+      return next;
+    });
+  };
+
   const resetToNewCv = () => {
     setPersonalInfo(createEmptyPersonalInfo());
     setEducations([createEmptyEducation(1)]);
@@ -335,6 +684,7 @@ export default function CvBuilder() {
     setAchievements([createEmptyAchievement(1)]);
     setCustomSections([]);
     setSkills({ hard: '', soft: '' });
+    setSectionOrder([...DEFAULT_SECTION_ORDER]);
     setExistingCvFile(null);
     setImportNotice('');
   };
@@ -351,7 +701,7 @@ export default function CvBuilder() {
     try {
       const formData = new FormData();
       formData.append('file', existingCvFile);
-      const parsed = await extractCvToBuilderData(formData);
+      const parsed = await extractCvToBuilderDataApi<CVData>(formData);
 
       if (!parsed) {
         alert('Gagal mendeteksi isi CV. Pastikan PDF berisi teks yang bisa dibaca.');
@@ -363,7 +713,7 @@ export default function CvBuilder() {
       setExperiences(parsed.experiences.length > 0 ? parsed.experiences : [createEmptyExperience(1)]);
       setProjects(parsed.projects.length > 0 ? parsed.projects : [createEmptyProject(1)]);
       setAchievements(parsed.achievements.length > 0 ? parsed.achievements : [createEmptyAchievement(1)]);
-      setCustomSections(parsed.customSections || []);
+      setCustomSections(normalizeCustomSections(parsed.customSections));
       setSkills(parsed.skills || { hard: '', soft: '' });
       setImportNotice('CV berhasil dideteksi. Semua field sudah diisi otomatis, tinggal kamu review/edit seperti flow buat CV baru.');
     } catch (error) {
@@ -385,7 +735,7 @@ export default function CvBuilder() {
     if (!text) return alert("Isi teks dulu sebelum minta bantuan AI!");
     setLoadingAI(idStr);
     try {
-      const result = await polishText(text, type, mode);
+      const result = await polishTextApi(text, type, mode);
       if (setterCallback) setterCallback(result);
     } catch { alert("AI Error."); } finally { setLoadingAI(null); }
   };
@@ -456,6 +806,17 @@ export default function CvBuilder() {
   // Enhanced Input Classes
   const inputClass = "w-full px-4 py-3 sm:py-2.5 bg-white/80 border border-slate-200/80 rounded-xl text-base sm:text-sm font-medium text-slate-700 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all hover:border-blue-300 hover:bg-white focus:bg-white shadow-sm hover:shadow-md";
   const labelClass = "block text-xs font-bold text-slate-600 uppercase tracking-wider mb-2 ml-0.5";
+
+  useEffect(() => {
+    if (!isMobilePreviewOpen) return;
+
+    const previousOverflow = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+
+    return () => {
+      document.body.style.overflow = previousOverflow;
+    };
+  }, [isMobilePreviewOpen]);
 
   return (
     <div className="min-h-screen bg-slate-50/50 pb-20 sm:pb-28 md:pb-32 font-sans text-slate-900">
@@ -561,6 +922,59 @@ export default function CvBuilder() {
               {importNotice}
             </div>
           )}
+        </section>
+
+        <section className="relative overflow-hidden bg-gradient-to-br from-indigo-50/80 via-white to-indigo-50/40 p-4 sm:p-8 rounded-2xl border border-indigo-200/50 shadow-lg hover:shadow-2xl hover:shadow-indigo-500/20 transition-all duration-500 group">
+          <div className="absolute inset-0 bg-gradient-to-r from-indigo-500/5 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-500"></div>
+          <div className="relative z-10">
+            <div className="mb-4 sm:mb-6 pb-3 sm:pb-4 border-b-2 border-indigo-200/80">
+              <h2 className="text-xl sm:text-2xl font-bold bg-gradient-to-r from-slate-800 to-slate-600 bg-clip-text text-transparent">CV Section Order</h2>
+              <p className="text-[11px] sm:text-xs text-slate-500 mt-1">Pakai tombol panah untuk ubah urutan section di preview dan hasil PDF.</p>
+            </div>
+
+            <div className="space-y-2">
+              {orderedSectionOrder.map((section, index) => {
+                const atTop = index === 0;
+                const atBottom = index === orderedSectionOrder.length - 1;
+                const sectionLabel = getSectionOrderLabel(section, customSections);
+
+                return (
+                  <div
+                    key={section}
+                    className="flex items-center justify-between rounded-xl border border-indigo-200/60 bg-white/80 px-3 py-2.5 shadow-sm"
+                  >
+                    <div className="flex items-center gap-3">
+                      <span className="inline-flex h-6 w-6 items-center justify-center rounded-full bg-indigo-100 text-xs font-bold text-indigo-700">
+                        {index + 1}
+                      </span>
+                      <p className="text-sm font-semibold text-slate-700">{sectionLabel}</p>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <button
+                        type="button"
+                        onClick={() => moveSection(section, -1)}
+                        disabled={atTop}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label={`Move ${sectionLabel} up`}
+                      >
+                        <ArrowUp size={15} />
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => moveSection(section, 1)}
+                        disabled={atBottom}
+                        className="inline-flex h-8 w-8 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-indigo-300 hover:text-indigo-600 disabled:cursor-not-allowed disabled:opacity-40"
+                        aria-label={`Move ${sectionLabel} down`}
+                      >
+                        <ArrowDown size={15} />
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+          </div>
         </section>
         
         {/* 2. PERSONAL INFO */}
@@ -786,7 +1200,7 @@ export default function CvBuilder() {
             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-3 mb-6">
               <SectionHeader title="Custom Sections" icon={FolderGit2} />
               <button
-                onClick={() => addItem(customSections, setCustomSections, { title: '', content: '' })}
+                onClick={() => addItem(customSections, setCustomSections, createEmptyCustomSection())}
                 className="w-full sm:w-auto justify-center px-4 py-2.5 bg-slate-100/90 text-slate-700 rounded-lg text-sm font-bold flex items-center gap-2 hover:bg-slate-200 transition-all border border-slate-200/80 hover:border-slate-300 hover:shadow-md"
               >
                 <Plus size={16} /> Add Section
@@ -804,42 +1218,199 @@ export default function CvBuilder() {
                 <div key={section.id} className="p-4 pt-12 sm:pt-6 sm:p-6 bg-white/70 text-slate-700 rounded-2xl border border-slate-200/70 relative hover:border-slate-300 transition-all shadow-sm hover:shadow-md">
                   <button onClick={() => removeItem(section.id, customSections, setCustomSections)} className="absolute top-3 right-3 sm:top-4 sm:right-4 text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition"><Trash2 size={16}/></button>
 
-                  <div className="mb-4 pr-10 sm:pr-12">
-                    <label className={labelClass}>Section Header</label>
-                    <input
-                      type="text"
-                      className={inputClass}
-                      placeholder="Contoh: Languages"
-                      value={section.title}
-                      onChange={(e) => updateItem(section.id, 'title', e.target.value, customSections, setCustomSections)}
-                    />
-                  </div>
+                  {(() => {
+                    const mode: CustomSectionMode = section.mode === 'experience' ? 'experience' : 'simple';
+                    const sectionItems = normalizeCustomSectionItems(section.items);
 
-                  <div>
-                    <label className={labelClass}>Content (one item per line)</label>
-                    <textarea
-                      rows={4}
-                      className={inputClass}
-                      placeholder={"- English (Professional)\n- Bahasa Indonesia (Native)"}
-                      value={section.content}
-                      onChange={(e) => updateItem(section.id, 'content', e.target.value, customSections, setCustomSections)}
-                    />
-                  </div>
+                    return (
+                      <>
+                        <div className="mb-4 pr-10 sm:pr-12">
+                          <label className={labelClass}>Section Header</label>
+                          <input
+                            type="text"
+                            className={inputClass}
+                            placeholder="Contoh: Languages"
+                            value={section.title}
+                            onChange={(e) => updateCustomSection(section.id, 'title', e.target.value)}
+                          />
+                        </div>
+
+                        <div className="mb-4">
+                          <label className={labelClass}>Format</label>
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                            <button
+                              type="button"
+                              onClick={() => setCustomSectionMode(section.id, 'simple')}
+                              className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                                mode === 'simple'
+                                  ? 'border-slate-700 bg-slate-700 text-white'
+                                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              }`}
+                            >
+                              Simple List
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setCustomSectionMode(section.id, 'experience')}
+                              className={`rounded-lg border px-3 py-2 text-sm font-semibold transition ${
+                                mode === 'experience'
+                                  ? 'border-slate-700 bg-slate-700 text-white'
+                                  : 'border-slate-200 bg-white text-slate-600 hover:border-slate-300'
+                              }`}
+                            >
+                              Experience Style
+                            </button>
+                          </div>
+                        </div>
+
+                        {mode === 'experience' ? (
+                          <div className="space-y-4">
+                            <div className="flex justify-end">
+                              <button
+                                type="button"
+                                onClick={() => addCustomSectionItem(section.id)}
+                                className="inline-flex items-center gap-2 rounded-lg border border-slate-300 bg-white px-3 py-2 text-sm font-semibold text-slate-700 transition hover:border-slate-400 hover:bg-slate-50"
+                              >
+                                <Plus size={14} /> Add Entry
+                              </button>
+                            </div>
+
+                            {sectionItems.length === 0 && (
+                              <div className="rounded-xl border border-dashed border-slate-300 bg-slate-50 px-4 py-3 text-sm text-slate-500">
+                                Belum ada entry. Klik Add Entry untuk menambahkan format seperti work experience.
+                              </div>
+                            )}
+
+                            {sectionItems.map((item) => (
+                              <div key={`section-${section.id}-item-${item.id}`} className="rounded-xl border border-slate-200 bg-white/80 p-4">
+                                <div className="mb-3 flex justify-end">
+                                  <button
+                                    type="button"
+                                    onClick={() => removeCustomSectionItem(section.id, item.id)}
+                                    className="text-slate-400 hover:text-red-500 p-2 hover:bg-red-50 rounded-lg transition"
+                                  >
+                                    <Trash2 size={16} />
+                                  </button>
+                                </div>
+
+                                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 sm:gap-5 mb-4">
+                                  <div>
+                                    <label className={labelClass}>Title / Role</label>
+                                    <input
+                                      type="text"
+                                      className={inputClass}
+                                      placeholder="Contoh: Volunteer Lead"
+                                      value={item.title}
+                                      onChange={(e) => updateCustomSectionItem(section.id, item.id, 'title', e.target.value)}
+                                    />
+                                  </div>
+
+                                  <div>
+                                    <label className={labelClass}>Organization / Subtitle</label>
+                                    <input
+                                      type="text"
+                                      className={inputClass}
+                                      placeholder="Contoh: AIESEC"
+                                      value={item.subtitle}
+                                      onChange={(e) => updateCustomSectionItem(section.id, item.id, 'subtitle', e.target.value)}
+                                    />
+                                  </div>
+
+                                  <div className="flex gap-3 sm:gap-4">
+                                    <div className="flex-1">
+                                      <label className={labelClass}>Start</label>
+                                      <input
+                                        type="text"
+                                        className={inputClass}
+                                        value={item.startDate}
+                                        onChange={(e) => updateCustomSectionItem(section.id, item.id, 'startDate', e.target.value)}
+                                      />
+                                    </div>
+                                    <div className="flex-1">
+                                      <label className={labelClass}>End</label>
+                                      <input
+                                        type="text"
+                                        className={`${inputClass} disabled:bg-slate-100`}
+                                        disabled={item.isCurrent}
+                                        value={item.endDate}
+                                        onChange={(e) => updateCustomSectionItem(section.id, item.id, 'endDate', e.target.value)}
+                                      />
+                                    </div>
+                                  </div>
+
+                                  <label className="flex items-center gap-2 text-sm text-slate-600 pt-3 sm:pt-4 cursor-pointer select-none">
+                                    <input
+                                      type="checkbox"
+                                      className="w-4 h-4 rounded text-slate-700"
+                                      checked={item.isCurrent}
+                                      onChange={(e) => updateCustomSectionItem(section.id, item.id, 'isCurrent', e.target.checked)}
+                                    />
+                                    Present
+                                  </label>
+                                </div>
+
+                                <div>
+                                  <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
+                                    <label className={labelClass}>Description (Bullet Points)</label>
+                                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full sm:w-auto">
+                                      <MagicButton
+                                        onClick={() => handlePolish(
+                                          'bullet',
+                                          'enhance',
+                                          item.description,
+                                          `custom-${section.id}-entry-${item.id}-enhance`,
+                                          (val) => updateCustomSectionItem(section.id, item.id, 'description', val),
+                                        )}
+                                        loading={loadingAI === `custom-${section.id}-entry-${item.id}-enhance`}
+                                        label="AI Enhance"
+                                        variant="enhance"
+                                      />
+                                      <MagicButton
+                                        onClick={() => handlePolish(
+                                          'bullet',
+                                          'translate',
+                                          item.description,
+                                          `custom-${section.id}-entry-${item.id}-translate`,
+                                          (val) => updateCustomSectionItem(section.id, item.id, 'description', val),
+                                        )}
+                                        loading={loadingAI === `custom-${section.id}-entry-${item.id}-translate`}
+                                        label="Enhance to EN"
+                                        variant="translate"
+                                      />
+                                    </div>
+                                  </div>
+                                  <textarea
+                                    rows={3}
+                                    className={inputClass}
+                                    placeholder="- Jelaskan kontribusi dan impact"
+                                    value={item.description}
+                                    onChange={(e) => updateCustomSectionItem(section.id, item.id, 'description', e.target.value)}
+                                  />
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        ) : (
+                          <div>
+                            <label className={labelClass}>Content (one item per line)</label>
+                            <textarea
+                              rows={4}
+                              className={inputClass}
+                              placeholder={"- English (Professional)\n- Bahasa Indonesia (Native)"}
+                              value={section.content}
+                              onChange={(e) => updateCustomSection(section.id, 'content', e.target.value)}
+                            />
+                          </div>
+                        )}
+                      </>
+                    );
+                  })()}
                 </div>
               ))}
             </div>
           </div>
         </section>
 
-          <section className="xl:hidden bg-white p-4 sm:p-5 rounded-3xl border border-slate-200 shadow-lg">
-            <div className="mb-4">
-              <h2 className="text-lg font-bold text-slate-800">Realtime Preview</h2>
-              <p className="text-xs text-slate-500 mt-1">Preview akan otomatis update saat kamu mengisi form.</p>
-            </div>
-            <div className="h-[460px] sm:h-[620px] overflow-y-scroll overscroll-contain rounded-2xl border border-slate-200 bg-slate-100">
-              <HarvardCVLivePreview data={fullData} />
-            </div>
-          </section>
         </div>
 
         <aside className="hidden xl:block sticky top-28">
@@ -854,6 +1425,39 @@ export default function CvBuilder() {
           </div>
         </aside>
       </div>
+
+      <button
+        type="button"
+        onClick={() => setIsMobilePreviewOpen(true)}
+        className="xl:hidden fixed bottom-5 right-4 z-40 inline-flex items-center gap-2 rounded-full bg-blue-600 px-4 py-3 text-sm font-bold text-white shadow-xl shadow-blue-600/30 transition hover:bg-blue-700 active:scale-95"
+      >
+        <Eye size={16} /> Realtime Preview
+      </button>
+
+      {isMobilePreviewOpen && (
+        <div className="xl:hidden fixed inset-0 z-50 bg-slate-900/55 backdrop-blur-sm p-3 sm:p-5">
+          <div className="mx-auto flex h-full w-full max-w-5xl flex-col overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-2xl">
+            <div className="flex items-center justify-between border-b border-slate-200 px-4 py-3 sm:px-5">
+              <div>
+                <h2 className="text-base font-bold text-slate-800">Realtime Preview</h2>
+                <p className="text-xs text-slate-500">Scroll preview CV di sini tanpa harus turun ke bawah form.</p>
+              </div>
+              <button
+                type="button"
+                onClick={() => setIsMobilePreviewOpen(false)}
+                className="inline-flex h-9 w-9 items-center justify-center rounded-lg border border-slate-200 bg-white text-slate-500 transition hover:border-slate-300 hover:text-slate-700"
+                aria-label="Close preview"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            <div className="flex-1 overflow-y-auto bg-slate-100 p-2">
+              <HarvardCVLivePreview data={fullData} />
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }
