@@ -81,7 +81,7 @@ export default function Home() {
           <div className="w-9 h-9 bg-brand-primary rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <FileText size={18} className="text-white" />
           </div>
-          <span className="font-heading text-lg font-extrabold tracking-tight text-white">CV Builder AI</span>
+          <span className="font-heading text-lg font-extrabold tracking-tight text-white">NextCV</span>
         </div>
         <Link 
           href="/cv-builder" 
@@ -503,9 +503,9 @@ export default function Home() {
             <div className="w-6 h-6 bg-brand-primary rounded flex items-center justify-center">
               <FileText size={13} className="text-white" />
             </div>
-            <span className="font-heading text-sm font-bold text-white tracking-tight">CV Builder AI</span>
+            <span className="font-heading text-sm font-bold text-white tracking-tight">NextCV</span>
           </div>
-          <p className="text-xs text-slate-500">© {new Date().getFullYear()} CV Builder AI · Dioptimalkan untuk Karir Anda.</p>
+          <p className="text-xs text-slate-500">© {new Date().getFullYear()} NextCV · Dioptimalkan untuk Karir Anda.</p>
         </div>
       </footer>
 

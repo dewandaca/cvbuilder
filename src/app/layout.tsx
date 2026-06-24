@@ -15,7 +15,7 @@ const manrope = Manrope({
 });
 
 export const metadata: Metadata = {
-  title: "CV Builder AI | Bikin CV Profesional dengan Bantuan AI",
+  title: "NextCV | Bikin CV Profesional dengan Bantuan AI",
   description: "Isi pengalamanmu, biarkan AI yang merapikan kalimatnya. Pilih template, preview langsung, unduh PDF. Gratis, tidak perlu daftar.",
 };
 
