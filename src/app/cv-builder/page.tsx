@@ -10,6 +10,7 @@ import {
 } from 'lucide-react';
 import { parseCvApi } from '@/lib/llamaApiClient';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 
 // --- Type Definitions ---
 type Education = { id: number; school: string; major: string; gpa: string; startDate: string; endDate: string; isCurrent: boolean; description: string; };
@@ -534,10 +535,12 @@ const createEmptyCustomSection = (): Omit<CustomSection, 'id'> => ({
 });
 
 export default function CvBuilder() {
+  const router = useRouter();
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false);
 
   // --- Import CV State ---
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -571,7 +574,7 @@ export default function CvBuilder() {
   });
 
   useEffect(() => {
-    const saved = localStorage.getItem('cv-data');
+    const saved = sessionStorage.getItem('cv-data');
     if (saved) {
       try {
         const data = JSON.parse(saved);
@@ -623,11 +626,76 @@ export default function CvBuilder() {
     [personalInfo, educations, experiences, projects, achievements, customSections, skills, orderedSectionOrder, sectionTitles, selectedTemplate, hasSelectedTemplate]
   );
 
-  // Auto-save to localStorage whenever data changes (only after hydration)
+  // Auto-save to sessionStorage whenever data changes (only after hydration)
   useEffect(() => {
     if (!isHydrated) return;
-    localStorage.setItem('cv-data', JSON.stringify(fullData));
+    sessionStorage.setItem('cv-data', JSON.stringify(fullData));
   }, [fullData, isHydrated]);
+
+  const hasAnyData = () => {
+    const hasPersonal = Object.values(personalInfo).some(val => val.trim() !== '');
+    const hasEducations = educations.length > 1 || (educations[0] && (educations[0].school || educations[0].major || educations[0].description));
+    const hasExperiences = experiences.length > 1 || (experiences[0] && (experiences[0].role || experiences[0].company || experiences[0].description));
+    const hasProjects = projects.length > 1 || (projects[0] && (projects[0].name || projects[0].role || projects[0].description));
+    const hasAchievements = achievements.length > 1 || (achievements[0] && (achievements[0].name || achievements[0].year));
+    const hasCustom = customSections.length > 0;
+    const hasSkills = skills.hard.trim() !== '' || skills.soft.trim() !== '';
+
+    return hasPersonal || hasEducations || hasExperiences || hasProjects || hasAchievements || hasCustom || hasSkills;
+  };
+
+  // Browser leave/tab close warning
+  useEffect(() => {
+    const handleBeforeUnload = (e: BeforeUnloadEvent) => {
+      if (hasAnyData()) {
+        e.preventDefault();
+        e.returnValue = ''; // triggers standard browser prompt
+      }
+    };
+    window.addEventListener('beforeunload', handleBeforeUnload);
+    return () => {
+      window.removeEventListener('beforeunload', handleBeforeUnload);
+    };
+  }, [personalInfo, educations, experiences, projects, achievements, customSections, skills]);
+
+  const handleBackClick = (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (hasAnyData()) {
+      setIsExitModalOpen(true);
+    } else {
+      router.push('/');
+    }
+  };
+
+  const handleConfirmExit = () => {
+    // Clear both storages to start fresh
+    sessionStorage.removeItem('cv-data');
+    localStorage.removeItem('cv-data');
+    
+    // Reset React state
+    setPersonalInfo(createEmptyPersonalInfo());
+    setEducations([createEmptyEducation(1)]);
+    setExperiences([createEmptyExperience(1)]);
+    setProjects([createEmptyProject(1)]);
+    setAchievements([createEmptyAchievement(1)]);
+    setCustomSections([]);
+    setSkills({ hard: '', soft: '' });
+    setSectionOrder([...DEFAULT_SECTION_ORDER]);
+    setActiveSection('summary');
+    setSectionTitles({
+      summary: 'Summary',
+      education: 'Education',
+      experience: 'Work Experience',
+      projects: 'Projects',
+      skills: 'Skills',
+      achievements: 'Honors & Awards',
+    });
+    setSelectedTemplate('harvard');
+    setHasSelectedTemplate(false);
+    
+    setIsExitModalOpen(false);
+    router.push('/');
+  };
 
   /** 
    * addItem: Generic function to add a new item with auto-increment id
@@ -1026,9 +1094,9 @@ export default function CvBuilder() {
         {/* Header */}
         <header className="relative z-10 max-w-7xl mx-auto w-full px-6 py-6 flex items-center justify-between border-b border-white/5">
           <div className="flex items-center gap-2.5">
-            <Link href="/" className="w-9 h-9 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-center transition">
+            <button onClick={handleBackClick} className="w-9 h-9 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-center transition cursor-pointer">
               <ArrowLeft size={16} className="text-white" />
-            </Link>
+            </button>
             <span className="font-heading text-sm font-bold tracking-tight text-white">Kembali ke Home</span>
           </div>
           <div className="flex items-center gap-2">
@@ -1137,9 +1205,9 @@ export default function CvBuilder() {
       <div className="sticky top-0 z-50 bg-white/80 backdrop-blur-md border-b border-slate-200 shadow-sm">
         <div className="max-w-[1400px] mx-auto px-4 sm:px-6 h-16 sm:h-20 flex items-center justify-between">
           <div className="flex items-center gap-3 sm:gap-4">
-             <Link href="/" className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition shrink-0 border border-slate-200/60">
+             <button onClick={handleBackClick} className="w-10 h-10 flex items-center justify-center rounded-full bg-slate-100 text-slate-500 hover:bg-slate-200 hover:text-slate-900 transition shrink-0 border border-slate-200/60 cursor-pointer">
                 <ArrowLeft size={20} />
-             </Link>
+             </button>
              <div>
                 <h1 className="font-heading font-extrabold text-base sm:text-lg text-slate-800 leading-tight">Harvard CV Builder</h1>
                 <div className="flex items-center gap-2 mt-0.5">
@@ -1958,6 +2026,38 @@ export default function CvBuilder() {
 
             <div className="flex-1 overflow-y-auto bg-slate-100 p-2 flex justify-center">
               <HarvardCVLivePreview data={fullData} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Exit Confirmation Modal */}
+      {isExitModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300">
+          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all scale-100 animate-in fade-in zoom-in-95 duration-200">
+            <div className="p-6 text-center">
+              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
+                <AlertCircle size={32} />
+              </div>
+              <h3 className="text-xl font-extrabold text-slate-800 font-heading mb-2">CV Anda Belum Tersimpan!</h3>
+              <p className="text-sm text-slate-500 leading-relaxed mb-6">
+                Jika Anda keluar ke halaman utama, draf CV Anda akan terhapus sepenuhnya dan tidak tersimpan di browser. Apakah Anda yakin ingin keluar?
+              </p>
+              
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setIsExitModalOpen(false)}
+                  className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition active:scale-[0.98]"
+                >
+                  Batal
+                </button>
+                <button
+                  onClick={handleConfirmExit}
+                  className="flex-1 py-3 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white rounded-xl text-sm font-bold transition shadow-lg shadow-rose-500/20 active:scale-[0.98]"
+                >
+                  Ya, Keluar
+                </button>
+              </div>
             </div>
           </div>
         </div>
