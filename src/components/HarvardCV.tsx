@@ -275,7 +275,7 @@ const BulletList = ({ text }: { text: string }) => {
   return (
     <View>
       {items.map((item, i) => (
-        <View key={i} style={styles.bulletPoint}>
+        <View key={i} style={styles.bulletPoint} wrap={false}>
           <Text style={styles.bullet}>•</Text>
           <Text style={styles.bulletText}>{item.trim()}</Text>
         </View>
@@ -401,7 +401,7 @@ export const HarvardCV = ({ data }: { data: CVData }) => {
         <View key="achievements">
           <Text style={styles.sectionTitle}>{data.sectionTitles?.achievements || 'Honors & Awards'}</Text>
           {data.achievements.map((ach) => (
-            <View key={ach.id} style={styles.bulletPoint}>
+            <View key={ach.id} style={styles.bulletPoint} wrap={false}>
               <Text style={styles.bullet}>•</Text>
               <Text style={styles.bulletText}>
                 {ach.name} {ach.year ? `(${ach.year})` : ''}
