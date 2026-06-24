@@ -164,7 +164,7 @@ export default function InterviewSim() {
     const fromArray = Array.isArray(report.sample_better_answers) ? report.sample_better_answers : [];
     const normalizedArray = fromArray
       .filter((item: unknown): item is Record<string, unknown> => !!item && typeof item === 'object')
-      .map((item) => ({
+      .map((item: Record<string, unknown>) => ({
         question: typeof item.question === 'string' ? item.question.trim() : '',
         candidate_answer: typeof item.candidate_answer === 'string' ? item.candidate_answer.trim() : '',
         better_answer: typeof item.better_answer === 'string' ? item.better_answer.trim() : '',
@@ -214,7 +214,7 @@ export default function InterviewSim() {
                 <h4 className="font-bold text-green-800 mb-4 flex items-center gap-2 text-lg"><CheckCircle/> Strengths</h4>
                 <ul className="space-y-3">
                   {report.strengths?.map((s: string, i: number) => (
-                    <li key={i} className="text-green-900 flex gap-2"><span className="font-bold">•</span> {s}</li>
+                    <li key={i} className="text-green-900 flex gap-2"><span className="font-bold">ΓÇó</span> {s}</li>
                   ))}
                 </ul>
               </div>
@@ -222,7 +222,7 @@ export default function InterviewSim() {
                 <h4 className="font-bold text-red-800 mb-4 flex items-center gap-2 text-lg"><XCircle/> Areas to Improve</h4>
                 <ul className="space-y-3">
                   {report.areas_for_improvement?.map((s: string, i: number) => (
-                    <li key={i} className="text-red-900 flex gap-2"><span className="font-bold">•</span> {s}</li>
+                    <li key={i} className="text-red-900 flex gap-2"><span className="font-bold">ΓÇó</span> {s}</li>
                   ))}
                 </ul>
               </div>
@@ -255,7 +255,7 @@ export default function InterviewSim() {
             )}
 
             <button onClick={() => window.location.reload()} className="w-full bg-slate-900 text-white py-5 rounded-xl font-bold hover:bg-black transition text-lg shadow-xl">
-              Mulai Sesi Baru 🔄
+              Mulai Sesi Baru ≡ƒöä
             </button>
           </div>
         </div>
