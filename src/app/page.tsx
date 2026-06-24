@@ -3,366 +3,510 @@
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { 
-  FileText, ScanEye, Target, Mic, ArrowRight, Sparkles, 
-  CheckCircle2, Zap, Star, XCircle 
+  FileText, ArrowRight, Sparkles, CheckCircle2, Zap, 
+  Upload, Wand2, Download, ArrowUpRight, ChevronRight
 } from 'lucide-react';
 
 export default function Home() {
-  // --- STATE FOR HYDRATION ERROR FIX ---
-  const [waveform, setWaveform] = useState<number[]>([]);
-
+  // AI Simulation State for the Hero Visual Mockup
+  const [simStep, setSimStep] = useState<0 | 1 | 2>(0);
+  
   useEffect(() => {
-    setWaveform(Array.from({ length: 15 }, () => Math.random() * 60 + 20));
+    const timer = setInterval(() => {
+      setSimStep((prev) => {
+        if (prev === 0) return 1;
+        if (prev === 1) return 2;
+        return 0;
+      });
+    }, 5000);
+    return () => clearInterval(timer);
   }, []);
 
   return (
-    <div className="min-h-screen bg-slate-50 font-sans text-slate-900 overflow-x-hidden selection:bg-blue-200">
+    <div className="min-h-screen bg-brand-bg font-sans text-slate-100 overflow-x-hidden selection:bg-brand-primary/40 selection:text-white">
       
-      {/* --- CUSTOM CSS ANIMATIONS & UTILS --- */}
+      {/* Global CSS overrides and utility classes */}
       <style jsx global>{`
-        @keyframes fade-in-up {
-          0% { opacity: 0; transform: translateY(20px); }
-          100% { opacity: 1; transform: translateY(0); }
+        /* Dynamic font adjustments */
+        h1, h2, h3, .font-heading {
+          font-family: var(--font-bricolage), system-ui, sans-serif;
         }
-        .animate-fade-in-up {
-          animation: fade-in-up 0.8s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+        p, span, li, a, button, .font-sans {
+          font-family: var(--font-manrope), system-ui, sans-serif;
         }
-        .delay-100 { animation-delay: 100ms; }
-        .delay-200 { animation-delay: 200ms; }
-        .delay-300 { animation-delay: 300ms; }
-        .delay-400 { animation-delay: 400ms; }
-        
-        @keyframes float {
-          0%, 100% { transform: translateY(0) scale(1); }
-          50% { transform: translateY(-20px) scale(1.02); }
+
+        /* Exponential ease-out transition wrapper */
+        .expo-transition {
+          transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
-        @keyframes shimmer {
-          0% { background-position: -200% 50%; }
-          100% { background-position: 200% 50%; }
+
+        /* Smooth border glow */
+        .glow-border {
+          box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 20px -2px rgba(0, 0, 0, 0.4);
         }
-        .animate-float { animation: float 8s ease-in-out infinite; }
-        .animate-float-delayed { animation: float 10s ease-in-out infinite reverse; }
-        .animate-shimmer { background-size: 200% auto; animation: shimmer 4s linear infinite; }
-        
-        .bg-grid-pattern {
+        .glow-border:hover {
+          box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25), 0 0 30px -5px rgba(99, 102, 241, 0.15), 0 10px 30px -10px rgba(0, 0, 0, 0.6);
+        }
+
+        /* Grid Background Pattern */
+        .brand-grid-pattern {
           background-image: 
-            linear-gradient(to right, rgba(255,255,255,0.03) 1px, transparent 1px),
-            linear-gradient(to bottom, rgba(255,255,255,0.03) 1px, transparent 1px);
-          background-size: 32px 32px;
-          mask-image: radial-gradient(circle at center, black, transparent 80%);
+            linear-gradient(to right, rgba(99, 102, 241, 0.04) 1px, transparent 1px),
+            linear-gradient(to bottom, rgba(99, 102, 241, 0.04) 1px, transparent 1px);
+          background-size: 56px 56px;
+        }
+
+        @keyframes pulse-slow {
+          0%, 100% { opacity: 0.12; transform: scale(1); }
+          50% { opacity: 0.22; transform: scale(1.08); }
+        }
+        .animate-pulse-slow {
+          animation: pulse-slow 8s ease-in-out infinite;
+        }
+
+        @media (prefers-reduced-motion: reduce) {
+          .expo-transition, .animate-pulse-slow {
+            animation: none !important;
+            transition: none !important;
+            transform: none !important;
+          }
         }
       `}</style>
 
-      {/* ================= HERO SECTION ================= */}
-      <div className="relative bg-slate-950 text-white pt-28 pb-32 md:pt-40 md:pb-48 overflow-hidden flex flex-col items-center">
-        
-        {/* Animated Background Orbs */}
-        <div className="absolute top-[-10%] right-[-5%] w-[600px] h-[600px] bg-blue-600/20 rounded-full blur-[100px] animate-float mix-blend-screen pointer-events-none"></div>
-        <div className="absolute bottom-[-10%] left-[-5%] w-[500px] h-[500px] bg-indigo-600/20 rounded-full blur-[100px] animate-float-delayed mix-blend-screen pointer-events-none"></div>
-        
-        {/* Tech Grid Overlay */}
-        <div className="absolute inset-0 bg-grid-pattern opacity-60 pointer-events-none"></div>
-
-        <div className="max-w-5xl mx-auto px-6 relative z-10 text-center flex flex-col items-center">
-          
-          {/* Badge */}
-          <div className="opacity-0 animate-fade-in-up inline-flex items-center gap-2 bg-white/5 border border-white/10 backdrop-blur-md rounded-full px-4 py-2 mb-8 shadow-xl">
-            <span className="relative flex h-2.5 w-2.5">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-              <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-            </span>
-            <span className="text-xs md:text-sm font-semibold tracking-wide text-slate-200">Powered by Llama 3.3 AI (70B)</span>
+      {/* ============================================================
+          HEADER / NAVIGATION
+      ============================================================ */}
+      <header className="relative z-50 max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+        <div className="flex items-center gap-2.5">
+          <div className="w-9 h-9 bg-brand-primary rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
+            <FileText size={18} className="text-white" />
           </div>
-          
-          {/* Main Title */}
-          <h1 className="opacity-0 animate-fade-in-up delay-100 text-5xl sm:text-6xl md:text-8xl font-heading font-black tracking-tight mb-8 leading-[1.1] text-balance">
-            Karir Global <br className="hidden md:inline" />
-            <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-400 via-indigo-400 to-cyan-300 animate-shimmer">
-              Butuh Strategi AI.
-            </span>
-          </h1>
-          
-          <p className="opacity-0 animate-fade-in-up delay-200 text-lg md:text-2xl text-slate-400 max-w-2xl mx-auto mb-12 leading-relaxed text-balance font-medium">
-            Platform karir All-in-One. Dari memoles CV format Harvard, audit otomatis, 
-            cek kecocokan lowongan, hingga simulasi interview cerdas.
-          </p>
+          <span className="font-heading text-lg font-extrabold tracking-tight text-white">CV Builder AI</span>
+        </div>
+        <Link 
+          href="/cv-builder" 
+          className="expo-transition inline-flex items-center gap-1.5 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl text-xs font-bold border border-white/10"
+        >
+          Mulai Bikin <ArrowUpRight size={14} />
+        </Link>
+      </header>
 
-          {/* Buttons */}
-          <div className="opacity-0 animate-fade-in-up delay-300 flex flex-col sm:flex-row items-center justify-center gap-4 md:gap-6 w-full px-4 sm:w-auto">
-            <Link 
-              href="/cv-builder"
-              className="w-full sm:w-auto px-8 py-4 bg-white text-slate-950 hover:bg-slate-100 rounded-2xl font-bold text-lg transition-all shadow-[0_0_40px_-10px_rgba(255,255,255,0.3)] hover:shadow-[0_0_60px_-15px_rgba(255,255,255,0.5)] flex items-center justify-center gap-2 transform hover:-translate-y-1"
-            >
-              <FileText size={22} /> Mulai Buat CV
-            </Link>
-            <Link 
-              href="#features"
-              className="w-full sm:w-auto px-8 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl font-bold text-lg transition-all border border-white/10 flex items-center justify-center gap-2 backdrop-blur-sm transform hover:-translate-y-1"
-            >
-              Pelajari Fitur <ArrowRight size={22} className="opacity-70" />
-            </Link>
+      {/* ============================================================
+          HERO SECTION
+      ============================================================ */}
+      <section className="relative pt-12 pb-32 md:pt-20 md:pb-48 overflow-hidden">
+        {/* Glow orbs */}
+        <div className="absolute top-[-10%] right-[-10%] w-[650px] h-[650px] bg-indigo-600/10 rounded-full blur-[140px] pointer-events-none animate-pulse-slow" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[550px] h-[550px] bg-indigo-800/10 rounded-full blur-[120px] pointer-events-none animate-pulse-slow" style={{ animationDelay: '4s' }} />
+        <div className="absolute inset-0 brand-grid-pattern pointer-events-none" />
+
+        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-12 gap-12 lg:gap-8 items-center relative z-10">
+          
+          {/* Left Column: Headline copy */}
+          <div className="lg:col-span-7 flex flex-col items-start text-left">
+            <div className="inline-flex items-center gap-2 bg-brand-primary/10 border border-brand-primary/20 rounded-full px-3.5 py-1.5 mb-8">
+              <span className="relative flex h-2 w-2">
+                <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75" />
+                <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-accent" />
+              </span>
+              <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-widest">Ditenagai Llama 3.3 70B · 100% Gratis</span>
+            </div>
+
+            <h1 className="font-heading text-4xl sm:text-6xl md:text-7xl font-extrabold leading-[1.08] tracking-[-0.03em] text-white mb-6 max-w-[18ch] text-balance">
+              Bikin CV profesional dibantu AI, anti-ribet.
+            </h1>
+
+            <p className="text-base sm:text-lg text-slate-300 max-w-[55ch] mb-10 leading-relaxed text-balance">
+              Tulis pengalaman kerjamu seadanya. AI kami akan menyusun kalimatnya menjadi rapi, profesional, dan siap lolos seleksi ATS. Pilih template, unduh PDF instan tanpa buat akun.
+            </p>
+
+            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
+              <Link
+                href="/cv-builder"
+                id="cta-hero-primary"
+                className="expo-transition inline-flex items-center justify-center gap-2.5 px-8 py-4 bg-brand-accent hover:bg-brand-accent-hover text-slate-950 rounded-xl font-extrabold text-base shadow-lg shadow-amber-500/10 hover:shadow-xl hover:shadow-amber-500/25 active:scale-98"
+              >
+                <Sparkles size={18} /> Mulai Buat CV Sekarang
+              </Link>
+              <a
+                href="#cara-kerja"
+                className="expo-transition inline-flex items-center justify-center gap-1.5 px-6 py-4 text-slate-400 hover:text-white text-sm font-semibold hover:translate-x-1"
+              >
+                Pelajari cara kerjanya <ChevronRight size={16} />
+              </a>
+            </div>
           </div>
 
-          {/* Metrics */}
-          <div className="opacity-0 animate-fade-in-up delay-400 mt-16 md:mt-24 pt-8 md:pt-12 border-t border-white/5 grid grid-cols-2 md:flex justify-center gap-x-8 gap-y-10 md:gap-24 text-slate-500 w-full max-w-3xl">
-             <div className="flex flex-col items-center gap-2 transition-transform hover:scale-105">
-                <span className="text-3xl md:text-4xl font-heading font-black text-white drop-shadow-md">100%</span>
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Privacy Safe</span>
-             </div>
-             <div className="flex flex-col items-center gap-2 transition-transform hover:scale-105">
-                <span className="text-3xl md:text-4xl font-heading font-black text-white drop-shadow-md">4-in-1</span>
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Super App</span>
-             </div>
-             <div className="col-span-2 md:col-span-1 flex flex-col items-center gap-2 transition-transform hover:scale-105">
-                <span className="text-3xl md:text-4xl font-heading font-black text-white drop-shadow-md">Harvard</span>
-                <span className="text-xs font-bold uppercase tracking-widest text-slate-400">Standard</span>
-             </div>
+          {/* Right Column: AI Live Simulation Mockup */}
+          <div className="lg:col-span-5 w-full flex justify-center lg:justify-end">
+            <div className="w-full max-w-[440px] bg-brand-card/90 border border-white/5 rounded-2xl p-6 shadow-2xl relative overflow-hidden backdrop-blur-md">
+              {/* Decorative browser dots */}
+              <div className="flex items-center gap-1.5 mb-5 border-b border-white/5 pb-4">
+                <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
+                <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
+                <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
+                <span className="text-[11px] font-mono text-slate-500 ml-2">Llama AI Editor Simulator</span>
+              </div>
+
+              {/* Simulation Screen Content */}
+              <div className="space-y-4">
+                {/* 1. Raw text card */}
+                <div className={`expo-transition p-4 rounded-xl border text-xs leading-relaxed ${
+                  simStep === 0 
+                    ? 'bg-white/5 border-indigo-500/30 text-slate-200' 
+                    : 'bg-white/2 border-white/5 text-slate-400 opacity-60'
+                }`}>
+                  <div className="flex items-center justify-between mb-2">
+                    <span className="font-bold text-[10px] uppercase tracking-wider text-slate-400">Input Pengguna:</span>
+                    {simStep === 0 && <span className="text-brand-accent animate-pulse font-semibold">Mengetik...</span>}
+                  </div>
+                  <p className="font-mono text-[11px]">
+                    &quot;saya marketing manager tokopedia selama 3 tahun. tugasnya bikin campaign ramadhan dan sukses naikin sales 20% lewat sosmed.&quot;
+                  </p>
+                </div>
+
+                {/* 2. Magic action indicator */}
+                <div className="flex justify-center my-3 relative">
+                  <div className={`expo-transition flex items-center gap-2 px-4 py-2 rounded-full text-xs font-bold shadow-lg ${
+                    simStep === 1 
+                      ? 'bg-brand-primary text-white scale-105 shadow-brand-primary/30' 
+                      : 'bg-slate-900 border border-white/10 text-slate-500 scale-95'
+                  }`}>
+                    <Wand2 size={13} className={simStep === 1 ? 'animate-spin' : ''} />
+                    <span>{simStep === 1 ? 'AI Sedang Merapikan...' : 'Proses AI'}</span>
+                  </div>
+                </div>
+
+                {/* 3. Polished output preview card */}
+                <div className={`expo-transition p-4 rounded-xl border text-xs ${
+                  simStep === 2 
+                    ? 'bg-slate-900 border-emerald-500/30 text-white shadow-lg shadow-emerald-950/20' 
+                    : 'bg-white/2 border-white/5 text-slate-500 opacity-40'
+                }`}>
+                  <div className="flex items-center justify-between mb-2.5">
+                    <span className="font-bold text-[10px] uppercase tracking-wider text-slate-400">Hasil Rapi AI (Format ATS):</span>
+                    {simStep === 2 && <span className="text-emerald-400 font-semibold text-[10px]">Sukses!</span>}
+                  </div>
+                  <div className="space-y-1">
+                    <p className="font-bold text-slate-100">Marketing Manager | Tokopedia</p>
+                    <p className="text-[10px] text-slate-400 italic mb-2">2021 – Present</p>
+                    <ul className="list-disc pl-4 space-y-1.5 text-[11px] text-slate-300">
+                      <li>Merancang dan mengeksekusi kampanye pemasaran digital spesial Ramadhan yang berhasil meningkatkan volume penjualan sebesar 20% YoY.</li>
+                      <li>Mengoptimalkan strategi promosi media sosial terintegrasi untuk memperluas jangkauan brand.</li>
+                    </ul>
+                  </div>
+                </div>
+              </div>
+
+              {/* Glow accent inside the box */}
+              <div className={`absolute bottom-[-10px] right-[-10px] w-24 h-24 bg-brand-primary/20 rounded-full blur-2xl expo-transition ${
+                simStep === 1 ? 'opacity-100 scale-125' : 'opacity-40'
+              }`} />
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* ============================================================
+          HOW IT WORKS (Not boring, staggered step visuals)
+      ============================================================ */}
+      <section id="cara-kerja" className="py-24 md:py-32 bg-white text-slate-900 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-indigo-50 rounded-full blur-[140px] opacity-70 pointer-events-none" />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-slate-100 rounded-full blur-[120px] opacity-60 pointer-events-none" />
+
+        <div className="max-w-6xl mx-auto px-6 relative z-10">
+          <div className="mb-20 text-center max-w-xl mx-auto">
+            <h2 className="font-heading text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-[-0.02em] mb-4">
+              Hanya 3 Langkah Mudah
+            </h2>
+            <p className="text-slate-500 text-base sm:text-lg">
+              Alur super cepat untuk melamar kerja. Bebas ribet, tanpa pendaftaran akun.
+            </p>
+          </div>
+
+          {/* Staggered visual process blocks */}
+          <div className="space-y-16">
+            
+            {/* Step 1 */}
+            <div className="grid md:grid-cols-12 gap-8 items-center">
+              <div className="md:col-span-5 order-2 md:order-1">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm">01</span>
+                  <h3 className="font-heading font-extrabold text-slate-900 text-2xl tracking-tight">Masukkan Data Pengalaman</h3>
+                </div>
+                <p className="text-slate-500 text-sm leading-relaxed mb-6">
+                  Tulis riwayat pendidikan, kontak, dan pengalaman kerja Anda. Cukup ketik dalam kalimat santai atau pointers mentah. Form builder kami dirancang sangat intuitif.
+                </p>
+                <div className="flex gap-2">
+                  <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Formulir Fleksibel</span>
+                  <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Auto-save</span>
+                </div>
+              </div>
+              <div className="md:col-span-7 order-1 md:order-2 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition">
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3 font-mono text-[11px] text-slate-400">
+                  <div className="h-5 bg-slate-100 rounded w-1/3 mb-1" />
+                  <div className="h-9 bg-slate-50 border border-slate-200 rounded w-full flex items-center px-3 text-slate-500">
+                    Dewanda Chen Ahnaf
+                  </div>
+                  <div className="h-5 bg-slate-100 rounded w-1/4 mt-2 mb-1" />
+                  <div className="h-16 bg-slate-50 border border-slate-200 rounded w-full flex items-start p-2 text-slate-400">
+                    - Kuliah di UI jurusan Ilmu Komputer gpa 3.8
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 2 */}
+            <div className="grid md:grid-cols-12 gap-8 items-center">
+              <div className="md:col-span-7 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition">
+                <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
+                  <div className="flex items-center justify-between pb-3 border-b border-slate-100">
+                    <span className="text-xs font-bold text-slate-800">Kalimat Mentah</span>
+                    <button className="flex items-center gap-1.5 px-3 py-1 bg-brand-primary text-white text-[10px] font-bold rounded-full">
+                      <Sparkles size={10} /> AI Polish
+                    </button>
+                  </div>
+                  <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100 italic">
+                    &quot;saya bisa python dan biasa bikin dashboard database pendaftaran sekolah&quot;
+                  </p>
+                  <p className="text-xs font-semibold text-emerald-600 mt-2">
+                    ✓ Dioptimalkan AI: &quot;Mengembangkan dashboard basis data pendaftaran siswa berbasis Python.&quot;
+                  </p>
+                </div>
+              </div>
+              <div className="md:col-span-5">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm">02</span>
+                  <h3 className="font-heading font-extrabold text-slate-900 text-2xl tracking-tight">Poles Instan dengan AI</h3>
+                </div>
+                <p className="text-slate-500 text-sm leading-relaxed mb-6">
+                  Cukup klik tombol **&quot;AI Enhance&quot;** pada kolom deskripsi. AI kami akan memodifikasi tata bahasa Anda menjadi kalimat aktif berstandar profesional. Bisa juga diterjemahkan ke Bahasa Inggris secara otomatis.
+                </p>
+                <div className="flex gap-2">
+                  <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Bahasa Inggris & Indo</span>
+                  <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Diksi Profesional</span>
+                </div>
+              </div>
+            </div>
+
+            {/* Step 3 */}
+            <div className="grid md:grid-cols-12 gap-8 items-center">
+              <div className="md:col-span-5 order-2 md:order-1">
+                <div className="flex items-center gap-3 mb-4">
+                  <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm">03</span>
+                  <h3 className="font-heading font-extrabold text-slate-900 text-2xl tracking-tight">Pilih Layout & Unduh PDF</h3>
+                </div>
+                <p className="text-slate-500 text-sm leading-relaxed mb-6">
+                  Sistem langsung merender CV Anda secara real-time. Pilih template yang diinginkan (seperti Harvard style), tinjau previewnya, lalu klik export untuk mendapatkan file PDF resmi yang siap dikirim.
+                </p>
+                <div className="flex gap-2">
+                  <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Ekspor Instan</span>
+                  <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Tanpa Tanda Air</span>
+                </div>
+              </div>
+              <div className="md:col-span-7 order-1 md:order-2 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition">
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded bg-red-100 text-red-600 flex items-center justify-center">
+                      <FileText size={20} />
+                    </div>
+                    <div>
+                      <p className="text-xs font-bold text-slate-800">CV_Dewanda_Harvard.pdf</p>
+                      <p className="text-[10px] text-slate-400">PDF Document · 120 KB</p>
+                    </div>
+                  </div>
+                  <button className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors">
+                    <Download size={14} /> Download
+                  </button>
+                </div>
+              </div>
+            </div>
+
           </div>
         </div>
-      </div>
+      </section>
 
-      {/* ================= FEATURE 1: CV BUILDER ================= */}
-      <section id="features" className="py-24 md:py-32 bg-white relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-[600px] h-[600px] bg-blue-50 rounded-full blur-[120px] opacity-60"></div>
-        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-16 md:gap-24 items-center relative z-10">
+      {/* ============================================================
+          IMPORT SECTION (PDF Parser UI)
+      ============================================================ */}
+      <section className="py-24 md:py-32 bg-brand-bg text-white relative overflow-hidden">
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.08),transparent_50%)] pointer-events-none" />
+        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(245,158,11,0.04),transparent_50%)] pointer-events-none" />
+
+        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-12 gap-12 md:gap-16 items-center relative z-10">
           
-          <div className="order-2 md:order-1">
-            <div className="inline-flex items-center gap-2 text-blue-600 font-bold bg-blue-50 border border-blue-100 px-4 py-2 rounded-full mb-8 text-xs md:text-sm uppercase tracking-wider shadow-sm">
-               <Zap size={16} className="text-blue-500"/> Smart Builder
+          {/* Visual box parser */}
+          <div className="md:col-span-6 bg-slate-900/60 border border-white/5 rounded-2xl p-6 sm:p-8 hover:border-white/10 expo-transition">
+            <div className="flex items-center gap-4 mb-6 border-b border-white/5 pb-4">
+              <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center">
+                <Upload size={18} className="text-indigo-400" />
+              </div>
+              <div>
+                <p className="font-bold text-sm text-white">Import CV PDF Lama</p>
+                <p className="text-slate-500 text-xs mt-0.5">Sistem parses teks otomatis</p>
+              </div>
             </div>
-            <h2 className="text-4xl md:text-5xl font-heading font-black text-slate-900 mb-6 leading-tight text-balance">
-              CV Harvard. <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-blue-600 to-indigo-500">
-                Dipoles AI Otomatis.
-              </span>
+            
+            <div className="space-y-3">
+              {[
+                { label: 'Analisis Informasi Kontak', status: 'Selesai' },
+                { label: 'Ekstraksi Riwayat Pekerjaan', status: 'Selesai' },
+                { label: 'Pemetaan Riwayat Pendidikan', status: 'Selesai' },
+                { label: 'Pengelompokan Kemampuan & Skill', status: 'Selesai' },
+              ].map((item, i) => (
+                <div key={i} className="flex items-center justify-between p-3 bg-white/2 border border-white/5 rounded-xl">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />
+                    <span className="text-xs text-slate-300 font-medium">{item.label}</span>
+                  </div>
+                  <span className="text-[10px] text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded font-bold">{item.status}</span>
+                </div>
+              ))}
+            </div>
+
+            <div className="mt-5 flex items-center gap-2.5 p-3.5 bg-indigo-500/5 border border-indigo-500/15 rounded-xl text-xs text-indigo-300 font-semibold">
+              <Sparkles size={16} className="text-brand-primary" />
+              <span>Semua data terisi otomatis dalam waktu kurang dari 5 detik!</span>
+            </div>
+          </div>
+
+          {/* Text descriptions */}
+          <div className="md:col-span-6 flex flex-col items-start">
+            <h2 className="font-heading text-4xl md:text-5xl font-black mb-6 leading-tight text-white tracking-[-0.02em] text-balance">
+              Sudah punya CV lama? Tarik otomatis di sini.
             </h2>
-            <p className="text-lg text-slate-600 mb-8 leading-relaxed font-medium">
-              Ketik pengalamanmu dalam Bahasa Indonesia, lalu gunakan 2 tombol AI: 
-              <strong className="text-slate-900 font-semibold"> Lengkapi Bullet Points</strong> atau 
-              <strong className="text-slate-900 font-semibold"> Translate ke Professional English</strong> sesuai kebutuhanmu.
+            <p className="text-slate-400 text-base leading-relaxed mb-8 max-w-[50ch]">
+              Unggah file CV lama Anda dalam format PDF. AI kami akan secara cerdas mem-parsing isi dokumen dan memetakan datanya ke dalam form builder. Anda cukup memperbarui atau menambahkan info baru yang dirasa perlu.
             </p>
-            <ul className="space-y-4 mb-10">
-              {['Format Harvard', '2 Tombol AI: Lengkapi + Translate EN', 'Saran Action Verbs & Metrik'].map((item, i) => (
-                <li key={i} className="flex items-center gap-4 text-slate-700 font-medium text-base md:text-lg">
-                  <div className="w-8 h-8 rounded-full bg-blue-50 border border-blue-100 text-blue-600 flex items-center justify-center flex-shrink-0 shadow-sm"><CheckCircle2 size={16} strokeWidth={3}/></div> {item}
+            <ul className="space-y-4 mb-8">
+              {[
+                'Mendeteksi nama, email, dan detail kontak tanpa salah ketik',
+                'Mengurai job deskripsi kerja dan pencapaian historis',
+                'Mengelompokkan data kompetensi keras dan lunak secara otomatis',
+              ].map((item, i) => (
+                <li key={i} className="flex items-start gap-3 text-slate-300 text-sm">
+                  <Zap size={16} className="text-brand-accent mt-0.5 flex-shrink-0" />
+                  <span>{item}</span>
                 </li>
               ))}
             </ul>
-            <Link href="/cv-builder" className="inline-flex items-center gap-2 text-lg font-bold text-blue-600 hover:text-blue-700 transition group/link bg-blue-50 hover:bg-blue-100 px-6 py-3 rounded-full">
-              Buka Builder <ArrowRight size={20} className="group-hover/link:translate-x-1 transition-transform"/>
-            </Link>
-          </div>
-
-          <div className="order-1 md:order-2 relative perspective-1000">
-             <div className="bg-white p-6 md:p-8 rounded-3xl shadow-2xl border border-slate-100/50 relative transform transition-all duration-700 hover:rotate-2 hover:scale-[1.02] bg-gradient-to-b from-white to-slate-50/50">
-                <div className="space-y-5">
-                   <div className="flex gap-5 mb-8">
-                      <div className="w-16 h-16 bg-slate-100 border border-slate-200 rounded-2xl flex-shrink-0"></div>
-                      <div className="space-y-3 w-full pt-1">
-                         <div className="h-5 w-2/3 bg-slate-800 rounded-md"></div>
-                         <div className="h-4 w-1/3 bg-slate-300 rounded-md"></div>
-                      </div>
-                   </div>
-                   <div className="space-y-3">
-                     <div className="h-4 w-full bg-slate-100 rounded-md"></div>
-                     <div className="h-4 w-[95%] bg-slate-100 rounded-md"></div>
-                     <div className="h-4 w-[85%] bg-slate-100 rounded-md"></div>
-                   </div>
-                   
-                   <div className="absolute -right-4 md:-right-10 top-1/2 bg-slate-900 text-white p-4 rounded-2xl shadow-xl flex items-center gap-4 transform translate-y-4 md:translate-y-0 animate-float border border-slate-700">
-                      <div className="bg-gradient-to-br from-indigo-500 to-purple-500 p-2.5 rounded-xl shadow-inner"><Sparkles size={18} className="text-white"/></div>
-                      <div className="text-sm">
-                         <div className="opacity-70 text-[10px] font-bold uppercase tracking-wider mb-0.5">AI Action</div>
-                         <div className="font-bold">Polishing...</div>
-                      </div>
-                   </div>
-                </div>
-             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= FEATURE 2: AI REVIEWER ================= */}
-      <section className="py-24 md:py-32 bg-slate-950 text-white relative overflow-hidden group">
-        <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_center,_var(--tw-gradient-stops))] from-slate-900 via-slate-950 to-slate-950 opacity-80 pointer-events-none"></div>
-        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-16 md:gap-24 items-center relative z-10">
-          
-          <div className="relative order-2 md:order-1">
-             <div className="bg-slate-900/80 backdrop-blur-xl p-8 md:p-10 rounded-[2.5rem] border border-slate-800 shadow-[0_0_50px_-12px_rgba(0,0,0,0.5)] transition-transform duration-500 hover:-translate-y-2 hover:border-slate-700">
-                <div className="flex justify-between items-start mb-10">
-                   <div>
-                      <h3 className="text-indigo-400 font-bold uppercase tracking-widest text-xs mb-2">Audit Report</h3>
-                      <h2 className="text-2xl md:text-3xl font-heading font-black">CV Analysis</h2>
-                   </div>
-                   <div className="w-20 h-20 rounded-full border-[6px] border-rose-500/20 flex items-center justify-center relative">
-                      <div className="absolute inset-0 rounded-full border-[6px] border-rose-500 border-t-transparent border-l-transparent transform rotate-45"></div>
-                      <span className="text-2xl font-black text-rose-500">65</span>
-                   </div>
-                </div>
-                <div className="space-y-4">
-                   <div className="bg-rose-500/5 border border-rose-500/20 p-5 rounded-2xl flex gap-4 items-start hover:bg-rose-500/10 transition-colors">
-                      <XCircle className="text-rose-500 flex-shrink-0 mt-0.5" size={22}/>
-                      <div>
-                         <strong className="text-white block mb-1.5 text-sm md:text-base">Fatal Mistake Found</strong>
-                         <p className="text-sm text-rose-200/80 leading-relaxed">Missing quantitative metrics in your latest work experience.</p>
-                      </div>
-                   </div>
-                   <div className="bg-emerald-500/5 border border-emerald-500/20 p-5 rounded-2xl flex gap-4 items-start hover:bg-emerald-500/10 transition-colors">
-                      <CheckCircle2 className="text-emerald-500 flex-shrink-0 mt-0.5" size={22}/>
-                      <div>
-                         <strong className="text-white block mb-1.5 text-sm md:text-base">Good Formatting</strong>
-                         <p className="text-sm text-emerald-200/80 leading-relaxed">Clean and consistent layout passes ATS parsing perfectly.</p>
-                      </div>
-                   </div>
-                </div>
-             </div>
-          </div>
-
-          <div className="order-1 md:order-2">
-            <div className="inline-flex items-center gap-2 text-indigo-400 font-bold bg-indigo-500/10 border border-indigo-500/20 px-4 py-2 rounded-full mb-8 text-xs md:text-sm uppercase tracking-wider">
-               <ScanEye size={16}/> Ruthless Auditor
-            </div>
-            <h2 className="text-4xl md:text-5xl font-heading font-black mb-6 leading-tight text-balance">
-              Reviewer Kejam. <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-indigo-400 to-rose-400">Tapi Jujur.</span>
-            </h2>
-            <p className="text-lg text-slate-400 mb-10 leading-relaxed font-medium">
-              HRD membuang CV dalam 6 detik. AI kami akan mencari keyword ATS yang hilang, dan memberitahu bagian mana yang 
-              <strong className="text-white font-semibold"> merupakan "Red Flag"</strong>.
-            </p>
-            <Link href="/cv-reviewer" className="inline-flex items-center gap-2 text-lg font-bold text-white bg-white/10 hover:bg-white/20 border border-white/5 backdrop-blur-sm px-6 py-3 rounded-full transition-all group/link">
-              Audit CV Saya <ArrowRight size={20} className="group-hover/link:translate-x-1 transition-transform"/>
-            </Link>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= FEATURE 3: ROLE MATCHER ================= */}
-      <section className="py-24 md:py-32 bg-slate-50 relative overflow-hidden group">
-        <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-16 md:gap-24 items-center">
-          
-          <div className="order-2 md:order-1">
-            <div className="inline-flex items-center gap-2 text-emerald-600 font-bold bg-emerald-100/50 border border-emerald-200 px-4 py-2 rounded-full mb-8 text-xs md:text-sm uppercase tracking-wider">
-               <Target size={16}/> Precision Matcher
-            </div>
-            <h2 className="text-4xl md:text-5xl font-heading font-black text-slate-900 mb-6 leading-tight text-balance">
-              Jangan Asal Lamar. <br/>
-              <span className="text-transparent bg-clip-text bg-gradient-to-r from-emerald-600 to-teal-500">Cek Dulu.</span>
-            </h2>
-            <p className="text-lg text-slate-600 mb-10 leading-relaxed font-medium">
-              Tempel Job Description dari lowongan manapun. AI akan memberitahu skill apa yang kurang dan memberikan 
-              <strong className="text-slate-900 font-semibold"> "Cheat Sheet" jawaban interview</strong> untuk menutupi kelemahanmu.
-            </p>
-            <Link href="/role-matcher" className="inline-flex items-center gap-2 text-lg font-bold text-emerald-700 hover:text-emerald-800 transition group/link bg-emerald-100/50 hover:bg-emerald-200 px-6 py-3 rounded-full">
-              Cek Kecocokan <ArrowRight size={20} className="group-hover/link:translate-x-1 transition-transform"/>
-            </Link>
-          </div>
-
-          <div className="order-1 md:order-2">
-             <div className="bg-slate-950 p-8 rounded-[2.5rem] shadow-2xl border border-slate-800 text-white font-mono text-sm transform transition-all duration-700 hover:rotate-[-1deg] hover:scale-[1.02]">
-                <div className="flex justify-between items-center border-b border-slate-800 pb-5 mb-6">
-                   <div className="flex items-center gap-2">
-                     <div className="flex gap-1.5">
-                       <div className="w-3 h-3 rounded-full bg-rose-500/80"></div>
-                       <div className="w-3 h-3 rounded-full bg-amber-500/80"></div>
-                       <div className="w-3 h-3 rounded-full bg-emerald-500/80"></div>
-                     </div>
-                     <span className="ml-4 text-slate-500">match.json</span>
-                   </div>
-                   <div className="bg-emerald-500/10 text-emerald-400 border border-emerald-500/20 text-xs font-bold px-3 py-1.5 rounded-full">MATCH: 85%</div>
-                </div>
-                <div className="space-y-5">
-                   <div className="flex items-center gap-3 text-emerald-400 bg-emerald-500/5 p-3 rounded-xl border border-emerald-500/10"><CheckCircle2 size={18}/> "Python" Found</div>
-                   <div className="flex items-center gap-3 text-rose-400 bg-rose-500/10 p-3 rounded-xl border border-rose-500/20"><XCircle size={18}/> "Docker" Missing!</div>
-                   <div className="pl-5 border-l-2 border-indigo-500/50 text-indigo-300/80 mt-4 text-xs md:text-sm">
-                      <span className="text-indigo-400/50 block mb-1">{"// AI Suggestion:"}</span>
-                      "Diplomatic Answer: While I haven't used Docker in prod, my strong Python background allows me to adapt quickly..."
-                   </div>
-                </div>
-             </div>
-          </div>
-        </div>
-      </section>
-
-      {/* ================= FEATURE 4: INTERVIEW SIMULATOR ================= */}
-      <section className="py-24 md:py-32 bg-slate-900 border-t border-slate-800 text-white relative overflow-hidden">
-         <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-2 gap-16 md:gap-24 items-center relative z-10">
-            
-            <div className="relative group order-2 md:order-1 perspective-1000">
-              <div className="relative bg-slate-800/50 backdrop-blur-md p-8 md:p-10 rounded-[2.5rem] border border-slate-700/50 shadow-2xl transition-all duration-500 hover:shadow-cyan-500/10">
-                 <div className="flex items-center gap-5 mb-10">
-                    <div className="w-16 h-16 rounded-2xl bg-slate-700/50 border border-slate-600/50 flex items-center justify-center text-3xl shadow-inner">🤖</div>
-                    <div>
-                       <div className="font-heading font-bold text-xl mb-1">AI Recruiter</div>
-                       <div className="flex items-center gap-2">
-                         <span className="relative flex h-2.5 w-2.5">
-                           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-emerald-400 opacity-75"></span>
-                           <span className="relative inline-flex rounded-full h-2.5 w-2.5 bg-emerald-500"></span>
-                         </span>
-                         <span className="text-emerald-400 text-sm font-medium tracking-wide">Listening...</span>
-                       </div>
-                    </div>
-                 </div>
-                 
-                 {/* Waveform */}
-                 <div className="flex items-center justify-center gap-2 h-28 mb-10 bg-slate-900/80 rounded-3xl border border-slate-800 p-6 shadow-inner">
-                    {waveform.map((height, i) => (
-                      <div 
-                        key={i} 
-                        className="w-1.5 md:w-2 bg-gradient-to-t from-cyan-500 to-indigo-500 rounded-full animate-pulse opacity-80" 
-                        style={{ height: `${height}%`, animationDelay: `${i * 0.1}s` }} 
-                      ></div>
-                    ))}
-                 </div>
-                 
-                 <div className="bg-slate-900/60 p-5 rounded-2xl border-l-[3px] border-cyan-500 text-slate-300 italic text-base leading-relaxed">
-                    "Tell me about a time you failed in a project. How did you handle it?"
-                 </div>
-              </div>
-            </div>
-
-            <div className="order-1 md:order-2">
-              <div className="inline-flex items-center gap-2 text-cyan-400 font-bold bg-cyan-500/10 border border-cyan-500/20 px-4 py-2 rounded-full mb-8 text-xs md:text-sm uppercase tracking-wider">
-                 <Mic size={16}/> Voice AI Simulation
-              </div>
-              <h2 className="text-4xl md:text-5xl font-heading font-black mb-6 leading-tight text-balance">
-                Takut Gagap? <br/>
-                <span className="text-transparent bg-clip-text bg-gradient-to-r from-cyan-400 to-blue-400">Latihan Dulu.</span>
-              </h2>
-              <p className="text-lg text-slate-400 mb-10 leading-relaxed font-medium">
-                Simulasi interview suara 2 arah. Jawab pakai microphone, dan dapatkan 
-                <strong className="text-white font-semibold"> Rapor Penilaian</strong> tata bahasa dan intonasi di akhir sesi.
-              </p>
-              <Link href="/interview" className="px-8 py-4 bg-gradient-to-r from-cyan-600 to-blue-600 hover:from-cyan-500 hover:to-blue-500 text-white rounded-2xl font-bold inline-flex items-center gap-3 transition-all shadow-[0_0_30px_-5px_var(--tw-shadow-color)] shadow-cyan-600/30 transform hover:-translate-y-1">
-                Mulai Simulasi <Mic size={22}/>
-              </Link>
-            </div>
-         </div>
-      </section>
-
-      {/* ================= FINAL CTA ================= */}
-      <section className="py-32 bg-white text-center relative overflow-hidden">
-        <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] bg-indigo-50 rounded-full blur-[150px] opacity-70 pointer-events-none"></div>
-        <div className="max-w-4xl mx-auto px-6 relative z-10">
-           <h2 className="text-5xl md:text-6xl font-heading font-black text-slate-900 mb-8 tracking-tight text-balance">
-             Siap Melompat ke <span className="text-indigo-600">Karir Global?</span>
-           </h2>
-           <p className="text-xl md:text-2xl text-slate-600 mb-12 px-4 font-medium text-balance">
-             Semua alat canggih ini Gratis. Jangan sampai kalah saing dengan kandidat lain yang udah mengoptimalkan AI.
-           </p>
-           <Link 
+            <Link
               href="/cv-builder"
-              className="inline-flex px-12 py-5 bg-slate-900 hover:bg-slate-800 text-white rounded-full font-bold text-lg md:text-xl transition-all shadow-xl hover:shadow-2xl items-center gap-3 transform hover:-translate-y-1"
+              className="expo-transition inline-flex items-center gap-2 text-sm font-extrabold text-slate-900 bg-white hover:bg-slate-100 px-6 py-3.5 rounded-xl shadow-lg"
             >
-              🚀 Buat CV Pertamaku
+              Coba Import PDF <ArrowRight size={16} />
             </Link>
+          </div>
+
         </div>
       </section>
 
-      {/* FOOTER */}
-      <footer className="bg-slate-50 border-t border-slate-200/60 py-12 text-center text-slate-500 font-medium">
-        <p className="font-heading font-bold text-slate-900 text-lg mb-2">Karir Global AI</p>
-        <p className="text-sm">&copy; {new Date().getFullYear()} Built for Future Leaders.</p>
+      {/* ============================================================
+          BENEFITS / FEATURES (Asymmetrical layout, no flat grids)
+      ============================================================ */}
+      <section className="py-24 md:py-32 bg-white text-slate-900 relative overflow-hidden">
+        <div className="max-w-6xl mx-auto px-6 relative z-10">
+          
+          {/* Asymmetric layout */}
+          <div className="grid lg:grid-cols-12 gap-12 items-start">
+            
+            {/* Left side: Sticky brief summary */}
+            <div className="lg:col-span-4 lg:sticky lg:top-8">
+              <h2 className="font-heading text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-[-0.02em] mb-4 text-balance">
+                Apa Yang Benar-benar Anda Dapatkan?
+              </h2>
+              <p className="text-slate-500 text-sm leading-relaxed mb-6">
+                Kami tidak menjanjikan kelulusan mutlak, tetapi kami memastikan CV Anda memenuhi seluruh kriteria teknis terbaik untuk menarik perhatian rekruter global.
+              </p>
+              <div className="w-16 h-1 bg-brand-primary rounded-full" />
+            </div>
+
+            {/* Right side: Staggered sizes cards */}
+            <div className="lg:col-span-8 space-y-6">
+              
+              {/* Feature card 1 (Featured - larger) */}
+              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-8 hover:border-brand-primary/30 expo-transition">
+                <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mb-5 text-brand-primary">
+                  <FileText size={24} />
+                </div>
+                <h3 className="font-heading font-extrabold text-slate-900 text-xl mb-3 tracking-tight">Format Layout Berstandar Dunia</h3>
+                <p className="text-slate-500 text-sm leading-relaxed">
+                  Kami mengadopsi standar Harvard CV yang sangat populer di kalangan rekruter internasional. Menggunakan font Times New Roman, struktur satu kolom, dan navigasi data berurutan yang lolos pemindaian ATS tanpa hambatan.
+                </p>
+              </div>
+
+              {/* Smaller features split columns */}
+              <div className="grid md:grid-cols-2 gap-6">
+                
+                {/* Feature card 2 */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:border-brand-primary/30 expo-transition">
+                  <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center mb-4 text-brand-accent">
+                    <Wand2 size={20} />
+                  </div>
+                  <h3 className="font-heading font-bold text-slate-900 text-lg mb-2.5 tracking-tight">AI yang Membantu, Bukan Menggantikan</h3>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    AI kami bertugas merapikan diksi, menghindari frasa pasif, serta mengoptimalkan keyword kompetensi. Anda tetap memegang kendali penuh atas cerita karir Anda.
+                  </p>
+                </div>
+
+                {/* Feature card 3 */}
+                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:border-brand-primary/30 expo-transition">
+                  <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center mb-4 text-emerald-600">
+                    <Download size={20} />
+                  </div>
+                  <h3 className="font-heading font-bold text-slate-900 text-lg mb-2.5 tracking-tight">Ekspor PDF Asli & Akurat</h3>
+                  <p className="text-slate-500 text-xs leading-relaxed">
+                    Unduh file PDF dengan rendering font berkualitas tinggi yang siap dicetak. Kami menjamin tidak ada coretan watermark atau elemen promosi apa pun pada CV Anda.
+                  </p>
+                </div>
+
+              </div>
+
+            </div>
+
+          </div>
+
+        </div>
+      </section>
+
+      {/* ============================================================
+          FINAL CTA SECTION (Drenched background visual)
+      ============================================================ */}
+      <section className="py-32 bg-brand-bg text-center relative overflow-hidden">
+        {/* Glowing background gradient elements */}
+        <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.18),transparent_60%)] pointer-events-none" />
+        <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
+
+        <div className="max-w-3xl mx-auto px-6 relative z-10">
+          <h2 className="font-heading text-4xl sm:text-6xl font-extrabold text-white mb-6 tracking-[-0.03em] leading-[1.08] text-balance">
+            Jangan biarkan karir impian Anda tertunda karena layout CV kaku.
+          </h2>
+          <p className="text-slate-400 text-base sm:text-lg mb-10 max-w-md mx-auto leading-relaxed">
+            Gratis tanpa batasan limit. Buat CV berkualitas dalam hitungan menit.
+          </p>
+          <Link
+            href="/cv-builder"
+            className="expo-transition inline-flex items-center gap-2.5 px-10 py-4.5 bg-brand-accent hover:bg-brand-accent-hover text-slate-950 rounded-xl font-extrabold text-base shadow-lg shadow-amber-500/15"
+          >
+            <Sparkles size={18} /> Bikin CV Sekarang — Gratis
+          </Link>
+        </div>
+      </section>
+
+      {/* ============================================================
+          FOOTER
+      ============================================================ */}
+      <footer className="bg-brand-bg border-t border-white/5 py-12 text-center text-slate-600">
+        <div className="max-w-6xl mx-auto px-6 flex flex-col sm:flex-row items-center justify-between gap-4">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 bg-brand-primary rounded flex items-center justify-center">
+              <FileText size={13} className="text-white" />
+            </div>
+            <span className="font-heading text-sm font-bold text-white tracking-tight">CV Builder AI</span>
+          </div>
+          <p className="text-xs text-slate-500">© {new Date().getFullYear()} CV Builder AI · Dioptimalkan untuk Karir Anda.</p>
+        </div>
       </footer>
 
     </div>

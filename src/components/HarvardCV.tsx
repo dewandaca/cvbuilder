@@ -64,6 +64,7 @@ type SectionOrderToken = BaseSectionKey | `custom:${number}`;
 type CVData = {
   personalInfo: {
     fullName: string;
+    address: string;
     email: string;
     phone: string;
     linkedin: string;
@@ -79,6 +80,7 @@ type CVData = {
     soft: string;
   };
   sectionOrder?: string[];
+  sectionTitles?: Record<string, string>;
 };
 
 const DEFAULT_SECTION_ORDER: BaseSectionKey[] = [
@@ -319,7 +321,7 @@ export const HarvardCV = ({ data }: { data: CVData }) => {
     summary: data.personalInfo.summary
       ? (
         <View key="summary">
-          <Text style={styles.sectionTitle}>Summary</Text>
+          <Text style={styles.sectionTitle}>{data.sectionTitles?.summary || 'Summary'}</Text>
           <Text style={{ textAlign: 'justify' }}>{data.personalInfo.summary}</Text>
         </View>
       )
@@ -327,7 +329,7 @@ export const HarvardCV = ({ data }: { data: CVData }) => {
     education: data.educations.length > 0
       ? (
         <View key="education">
-          <Text style={styles.sectionTitle}>Education</Text>
+          <Text style={styles.sectionTitle}>{data.sectionTitles?.education || 'Education'}</Text>
           {data.educations.map((edu) => (
             <View key={edu.id} style={{ marginBottom: 8 }}>
               <View style={styles.row}>
@@ -348,7 +350,7 @@ export const HarvardCV = ({ data }: { data: CVData }) => {
     experience: data.experiences.length > 0
       ? (
         <View key="experience">
-          <Text style={styles.sectionTitle}>Experience</Text>
+          <Text style={styles.sectionTitle}>{data.sectionTitles?.experience || 'Experience'}</Text>
           {data.experiences.map((exp) => (
             <View key={exp.id} style={{ marginBottom: 10 }}>
               <View style={styles.row}>
@@ -364,7 +366,7 @@ export const HarvardCV = ({ data }: { data: CVData }) => {
     projects: data.projects.length > 0
       ? (
         <View key="projects">
-          <Text style={styles.sectionTitle}>Projects</Text>
+          <Text style={styles.sectionTitle}>{data.sectionTitles?.projects || 'Projects'}</Text>
           {data.projects.map((proj) => (
             <View key={proj.id} style={{ marginBottom: 8 }}>
               <View style={styles.row}>
@@ -380,7 +382,7 @@ export const HarvardCV = ({ data }: { data: CVData }) => {
     skills: (data.skills.hard || data.skills.soft)
       ? (
         <View key="skills">
-          <Text style={styles.sectionTitle}>Skills</Text>
+          <Text style={styles.sectionTitle}>{data.sectionTitles?.skills || 'Skills'}</Text>
           {data.skills.hard && (
             <Text style={{ marginBottom: 3 }}>
               <Text style={styles.bold}>Hard Skills: </Text> {data.skills.hard}
@@ -397,7 +399,7 @@ export const HarvardCV = ({ data }: { data: CVData }) => {
     achievements: data.achievements.length > 0 && data.achievements[0].name !== ''
       ? (
         <View key="achievements">
-          <Text style={styles.sectionTitle}>Honors & Awards</Text>
+          <Text style={styles.sectionTitle}>{data.sectionTitles?.achievements || 'Honors & Awards'}</Text>
           {data.achievements.map((ach) => (
             <View key={ach.id} style={styles.bulletPoint}>
               <Text style={styles.bullet}>•</Text>
@@ -452,7 +454,12 @@ export const HarvardCV = ({ data }: { data: CVData }) => {
         <View style={styles.header}>
           <Text style={styles.name}>{data.personalInfo.fullName}</Text>
           <Text style={styles.contact}>
-            {data.personalInfo.email}  |  {data.personalInfo.phone}  {displayLinkedin ? `|  ${displayLinkedin}` : ''}
+            {[
+              data.personalInfo.address,
+              data.personalInfo.email,
+              data.personalInfo.phone,
+              displayLinkedin,
+            ].filter(Boolean).join('  |  ')}
           </Text>
         </View>
 

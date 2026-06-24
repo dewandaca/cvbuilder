@@ -1,7 +1,14 @@
 import type { NextConfig } from "next";
+import path from "path";
 
 const nextConfig: NextConfig = {
-  /* config options here */
+  // Turbopack config (default bundler in Next.js 16+)
+  turbopack: {
+    resolveAlias: {
+      // Fix tailwindcss resolve issue when project is inside a subdirectory without a package.json above it
+      tailwindcss: path.resolve("./node_modules/tailwindcss"),
+    },
+  },
 };
 
 export default nextConfig;

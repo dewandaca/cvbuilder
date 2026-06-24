@@ -1,8 +1,8 @@
 @import "tailwindcss";
 
 @theme {
-  --font-sans: var(--font-inter), ui-sans-serif, system-ui, sans-serif;
-  --font-heading: var(--font-jakarta), ui-sans-serif, system-ui, sans-serif;
+  --font-sans: var(--font-manrope), ui-sans-serif, system-ui, sans-serif;
+  --font-heading: var(--font-bricolage), ui-sans-serif, system-ui, sans-serif;
 
   /* Custom Colors */
   --color-primary-50: #eff6ff;
@@ -11,12 +11,20 @@
   --color-primary-600: #2563eb;
   --color-primary-700: #1d4ed8;
   --color-primary-900: #1e3a8a;
+
+  /* Brand Theme Colors */
+  --color-brand-bg: #060713;
+  --color-brand-card: #0e1022;
+  --color-brand-card-hover: #141730;
+  --color-brand-primary: #6366f1;
+  --color-brand-accent: #f59e0b;
+  --color-brand-accent-hover: #d97706;
 }
 
 @layer base {
   :root {
     --background: #ffffff;
-    --foreground: #0f172a;
+    --foreground: #0b0f19;
   }
 }
 
