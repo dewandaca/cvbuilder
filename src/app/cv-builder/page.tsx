@@ -1,13 +1,14 @@
 'use client'
 
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { extractCvToBuilderDataApi, polishTextApi } from '@/lib/llamaApiClient';
+import { polishTextApi } from '@/lib/llamaApiClient';
 import { HarvardCV } from '@/components/HarvardCV';
 import { pdf } from '@react-pdf/renderer';
 import { 
-  Plus, Trash2, Loader2, Save, ArrowLeft, 
-  Briefcase, GraduationCap, Trophy, Code, FolderGit2, Sparkles, UploadCloud, ArrowUp, ArrowDown, Eye, X
+  Plus, Trash2, Loader2, Save, ArrowLeft, ArrowRight,
+  Briefcase, GraduationCap, Trophy, Code, FolderGit2, Sparkles, ArrowUp, ArrowDown, Eye, X, Upload, FileText, CheckCircle2, AlertCircle
 } from 'lucide-react';
+import { parseCvApi } from '@/lib/llamaApiClient';
 import Link from 'next/link';
 
 // --- Type Definitions ---
@@ -245,7 +246,9 @@ const PreviewSectionTitle = ({ children }: { children: string }) => (
 
 const HarvardCVLivePreview = ({ data }: { data: CVData }) => {
   const containerRef = useRef<HTMLDivElement>(null);
+  const contentRef = useRef<HTMLDivElement>(null);
   const [scale, setScale] = useState(1);
+  const [contentHeight, setContentHeight] = useState(0);
 
   useEffect(() => {
     const el = containerRef.current;
@@ -257,6 +260,18 @@ const HarvardCVLivePreview = ({ data }: { data: CVData }) => {
     update();
     const ro = new ResizeObserver(update);
     ro.observe(el);
+    return () => ro.disconnect();
+  }, []);
+
+  // Separately track the natural (unscaled) height of the content
+  useEffect(() => {
+    const el = contentRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => {
+      setContentHeight(el.scrollHeight);
+    });
+    ro.observe(el);
+    setContentHeight(el.scrollHeight);
     return () => ro.disconnect();
   }, []);
 
@@ -454,17 +469,24 @@ const HarvardCVLivePreview = ({ data }: { data: CVData }) => {
   };
 
   return (
-    <div ref={containerRef} className="bg-slate-200 p-2 overflow-hidden">
-      <div
-        className="bg-white p-6 sm:p-8 text-black shadow-sm"
-        style={{
-          fontFamily: 'Times New Roman, Times, serif',
-          fontSize: 10.5,
-          lineHeight: 1.4,
-          width: 794,
-          zoom: scale,
-        }}
-      >
+    <div ref={containerRef} className="bg-transparent p-2 w-full flex justify-center">
+      {/* Wrapper div that tells the scroll container the true scaled height and centers the page */}
+      <div style={{ width: 794 * scale, height: contentHeight > 0 ? contentHeight * scale : 'auto', position: 'relative' }}>
+        <div
+          ref={contentRef}
+          className="bg-white p-6 sm:p-8 text-black shadow-sm"
+          style={{
+            fontFamily: 'Times New Roman, Times, serif',
+            fontSize: 10.5,
+            lineHeight: 1.4,
+            width: 794,
+            transformOrigin: 'top left',
+            transform: `scale(${scale})`,
+            position: 'absolute',
+            top: 0,
+            left: 0,
+          }}
+        >
         <div className="mb-4 text-center">
           <h1 className="mb-2 text-[20px] font-bold uppercase tracking-wide">
             {data.personalInfo.fullName || 'YOUR NAME'}
@@ -490,6 +512,7 @@ const HarvardCVLivePreview = ({ data }: { data: CVData }) => {
           const customSection = customSectionsById.get(customId);
           return customSection ? renderCustomSection(customSection) : null;
         })}
+        </div>
       </div>
     </div>
   );
@@ -513,14 +536,22 @@ const createEmptyCustomSection = (): Omit<CustomSection, 'id'> => ({
 export default function CvBuilder() {
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
-  const [builderMode, setBuilderMode] = useState<'new' | 'edit'>('new');
   const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
-  const [existingCvFile, setExistingCvFile] = useState<File | null>(null);
-  const [isImportingCv, setIsImportingCv] = useState(false);
-  const [importNotice, setImportNotice] = useState('');
   const [isHydrated, setIsHydrated] = useState(false);
+
+  // --- Import CV State ---
+  const [isImportModalOpen, setIsImportModalOpen] = useState(false);
+  const [isParsingCv, setIsParsingCv] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
+  const [importSuccess, setImportSuccess] = useState(false);
+  const [dragOver, setDragOver] = useState(false);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
   
   // --- STATE ---
+  const [selectedTemplate, setSelectedTemplate] = useState<'harvard' | 'modern' | 'creative'>('harvard');
+  const [hasSelectedTemplate, setHasSelectedTemplate] = useState<boolean>(false);
+
   const [personalInfo, setPersonalInfo] = useState(createEmptyPersonalInfo());
   const [educations, setEducations] = useState<Education[]>([createEmptyEducation(1)]);
   const [experiences, setExperiences] = useState<Experience[]>([createEmptyExperience(1)]);
@@ -553,6 +584,15 @@ export default function CvBuilder() {
         setSkills(data.skills || { hard: '', soft: '' });
         setSectionOrder(data.sectionOrder || [...DEFAULT_SECTION_ORDER]);
         setSectionTitles(data.sectionTitles || {});
+        if (data.selectedTemplate) {
+          setSelectedTemplate(data.selectedTemplate);
+        }
+        if (data.hasSelectedTemplate !== undefined) {
+          setHasSelectedTemplate(data.hasSelectedTemplate);
+        } else if (saved) {
+          // If we have saved data from before this feature, they have selected a template
+          setHasSelectedTemplate(true);
+        }
       } catch {
         // ignore corrupted data
       }
@@ -577,8 +617,10 @@ export default function CvBuilder() {
       skills,
       sectionOrder: orderedSectionOrder,
       sectionTitles,
+      selectedTemplate,
+      hasSelectedTemplate,
     }),
-    [personalInfo, educations, experiences, projects, achievements, customSections, skills, orderedSectionOrder, sectionTitles]
+    [personalInfo, educations, experiences, projects, achievements, customSections, skills, orderedSectionOrder, sectionTitles, selectedTemplate, hasSelectedTemplate]
   );
 
   // Auto-save to localStorage whenever data changes (only after hydration)
@@ -758,62 +800,14 @@ export default function CvBuilder() {
       skills: 'Skills',
       achievements: 'Honors & Awards',
     });
-    setExistingCvFile(null);
-    setImportNotice('');
+
   };
 
-  const handleImportExistingCv = async () => {
-    if (!existingCvFile) {
-      alert('Pilih file CV PDF dulu.');
-      return;
-    }
-
-    setIsImportingCv(true);
-    setImportNotice('');
-
-    try {
-      const formData = new FormData();
-      formData.append('file', existingCvFile);
-      const parsed = await extractCvToBuilderDataApi<CVData>(formData);
-
-      if (!parsed) {
-        alert('Gagal mendeteksi isi CV. Pastikan PDF berisi teks yang bisa pembaca.');
-        return;
-      }
-
-      setPersonalInfo(parsed.personalInfo || createEmptyPersonalInfo());
-      setEducations(parsed.educations.length > 0 ? parsed.educations : [createEmptyEducation(1)]);
-      setExperiences(parsed.experiences.length > 0 ? parsed.experiences : [createEmptyExperience(1)]);
-      setProjects(parsed.projects.length > 0 ? parsed.projects : [createEmptyProject(1)]);
-      setAchievements(parsed.achievements.length > 0 ? parsed.achievements : [createEmptyAchievement(1)]);
-      setCustomSections(normalizeCustomSections(parsed.customSections));
-      setSkills(parsed.skills || { hard: '', soft: '' });
-      if (parsed.sectionTitles) {
-        setSectionTitles({
-          summary: parsed.sectionTitles.summary || 'Summary',
-          education: parsed.sectionTitles.education || 'Education',
-          experience: parsed.sectionTitles.experience || 'Work Experience',
-          projects: parsed.sectionTitles.projects || 'Projects',
-          skills: parsed.sectionTitles.skills || 'Skills',
-          achievements: parsed.sectionTitles.achievements || 'Honors & Awards',
-        });
-      }
-      if (parsed.sectionOrder && parsed.sectionOrder.length > 0) {
-        setSectionOrder(parsed.sectionOrder as SectionOrderToken[]);
-      }
-      setImportNotice('CV berhasil dideteksi. Semua field sudah diisi otomatis, tinggal kamu review/edit seperti flow buat CV baru.');
-    } catch (error) {
-      console.error(error);
-      alert('Terjadi error saat membaca CV. Coba lagi.');
-    } finally {
-      setIsImportingCv(false);
-    }
-  };
 
   // --- AI LOGIC ---
   const handlePolish = async (
     type: 'summary' | 'bullet',
-    mode: 'enhance' | 'translate',
+    mode: 'id' | 'en',
     text: string,
     idStr: string,
     setterCallback?: (val: string) => void
@@ -843,6 +837,124 @@ export default function CvBuilder() {
       alert("Gagal generate PDF");
     } finally {
       setIsGeneratingPdf(false);
+    }
+  };
+
+  // --- IMPORT CV ---
+  const handleFileSelect = (file: File) => {
+    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'text/plain'];
+    if (!allowed.includes(file.type)) {
+      setImportError('Format tidak didukung. Gunakan PDF, JPG, PNG, atau TXT.');
+      return;
+    }
+    setSelectedFile(file);
+    setImportError(null);
+    setImportSuccess(false);
+  };
+
+  const handleImportCv = async () => {
+    if (!selectedFile) return;
+    setIsParsingCv(true);
+    setImportError(null);
+    setImportSuccess(false);
+
+    try {
+      const formData = new FormData();
+      formData.append('file', selectedFile);
+
+      type ParsedCVData = {
+        personalInfo?: { fullName?: string; address?: string; email?: string; phone?: string; linkedin?: string; summary?: string; };
+        educations?: Array<{ school?: string; major?: string; gpa?: string; startDate?: string; endDate?: string; isCurrent?: boolean; description?: string; }>;
+        experiences?: Array<{ role?: string; company?: string; startDate?: string; endDate?: string; isCurrent?: boolean; description?: string; }>;
+        projects?: Array<{ name?: string; role?: string; startDate?: string; endDate?: string; description?: string; }>;
+        achievements?: Array<{ name?: string; year?: string; }>;
+        skills?: { hard?: string; soft?: string; };
+      };
+
+      const data = await parseCvApi<ParsedCVData>(formData);
+
+      // Fill personal info
+      if (data.personalInfo) {
+        setPersonalInfo({
+          fullName: data.personalInfo.fullName || '',
+          address: data.personalInfo.address || '',
+          email: data.personalInfo.email || '',
+          phone: data.personalInfo.phone || '',
+          linkedin: data.personalInfo.linkedin || '',
+          summary: data.personalInfo.summary || '',
+        });
+      }
+
+      // Fill educations
+      if (data.educations && data.educations.length > 0) {
+        setEducations(data.educations.map((edu, i) => ({
+          id: i + 1,
+          school: edu.school || '',
+          major: edu.major || '',
+          gpa: edu.gpa || '',
+          startDate: edu.startDate || '',
+          endDate: edu.endDate || '',
+          isCurrent: edu.isCurrent || false,
+          description: edu.description || '',
+        })));
+      }
+
+      // Fill experiences
+      if (data.experiences && data.experiences.length > 0) {
+        setExperiences(data.experiences.map((exp, i) => ({
+          id: i + 1,
+          role: exp.role || '',
+          company: exp.company || '',
+          startDate: exp.startDate || '',
+          endDate: exp.endDate || '',
+          isCurrent: exp.isCurrent || false,
+          description: exp.description || '',
+        })));
+      }
+
+      // Fill projects
+      if (data.projects && data.projects.length > 0) {
+        setProjects(data.projects.map((proj, i) => ({
+          id: i + 1,
+          name: proj.name || '',
+          role: proj.role || '',
+          startDate: proj.startDate || '',
+          endDate: proj.endDate || '',
+          description: proj.description || '',
+        })));
+      }
+
+      // Fill achievements
+      if (data.achievements && data.achievements.length > 0) {
+        setAchievements(data.achievements.map((ach, i) => ({
+          id: i + 1,
+          name: ach.name || '',
+          year: ach.year || '',
+        })));
+      }
+
+      // Fill skills
+      if (data.skills) {
+        setSkills({
+          hard: data.skills.hard || '',
+          soft: data.skills.soft || '',
+        });
+      }
+
+      setImportSuccess(true);
+      setActiveSection('summary');
+
+      // Auto-close modal after 1.5s
+      setTimeout(() => {
+        setIsImportModalOpen(false);
+        setSelectedFile(null);
+        setImportSuccess(false);
+      }, 1500);
+
+    } catch (err) {
+      setImportError(err instanceof Error ? err.message : 'Terjadi kesalahan. Silakan coba lagi.');
+    } finally {
+      setIsParsingCv(false);
     }
   };
 
@@ -904,6 +1016,120 @@ export default function CvBuilder() {
     };
   }, [isMobilePreviewOpen]);
 
+  if (!hasSelectedTemplate) {
+    return (
+      <div className="min-h-screen bg-slate-950 text-slate-100 flex flex-col font-sans selection:bg-indigo-500/20 selection:text-white relative overflow-hidden">
+        {/* Glow gradients */}
+        <div className="absolute top-[-10%] right-[-10%] w-[600px] h-[600px] bg-indigo-600/10 rounded-full blur-[130px] pointer-events-none" />
+        <div className="absolute bottom-[-10%] left-[-10%] w-[500px] h-[500px] bg-indigo-800/10 rounded-full blur-[110px] pointer-events-none" />
+
+        {/* Header */}
+        <header className="relative z-10 max-w-7xl mx-auto w-full px-6 py-6 flex items-center justify-between border-b border-white/5">
+          <div className="flex items-center gap-2.5">
+            <Link href="/" className="w-9 h-9 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl flex items-center justify-center transition">
+              <ArrowLeft size={16} className="text-white" />
+            </Link>
+            <span className="font-heading text-sm font-bold tracking-tight text-white">Kembali ke Home</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="font-heading text-lg font-extrabold tracking-tight text-indigo-400">NextCV</span>
+          </div>
+        </header>
+
+        {/* Content */}
+        <main className="relative z-10 flex-1 max-w-5xl mx-auto w-full px-6 py-12 md:py-20 flex flex-col justify-center">
+          <div className="text-center max-w-2xl mx-auto mb-12 sm:mb-16">
+            <div className="inline-flex items-center gap-2 bg-indigo-500/10 border border-indigo-500/20 rounded-full px-3 py-1 mb-4">
+              <Sparkles size={12} className="text-indigo-400" />
+              <span className="text-[10px] font-bold text-indigo-300 uppercase tracking-widest">Langkah Pertama</span>
+            </div>
+            <h1 className="font-heading text-3xl sm:text-5xl font-black tracking-tight text-white mb-4">
+              Pilih Gaya Template CV Anda
+            </h1>
+            <p className="text-sm sm:text-base text-slate-400 leading-relaxed">
+              Pilih gaya template untuk memulai. Semua data yang Anda masukkan dapat ditransfer ke template lain nantinya saat tersedia.
+            </p>
+          </div>
+
+          {/* Grid of Templates */}
+          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+            
+            {/* Card 1: Harvard Style */}
+            <div 
+              onClick={() => {
+                setSelectedTemplate('harvard');
+                setHasSelectedTemplate(true);
+              }}
+              className="group relative cursor-pointer bg-white/2 hover:bg-white/4 border border-indigo-500/30 hover:border-indigo-500 rounded-2xl p-6 flex flex-col justify-between transition-all duration-300 hover:shadow-2xl hover:shadow-indigo-500/10 hover:-translate-y-1"
+            >
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 text-indigo-400 rounded-xl flex items-center justify-center font-bold text-sm">
+                    01
+                  </div>
+                  <span className="text-[10px] font-bold bg-emerald-500/10 text-emerald-400 px-2 py-0.5 rounded-full border border-emerald-500/20 uppercase tracking-wider">
+                    ATS-Friendly
+                  </span>
+                </div>
+                <h3 className="font-heading font-extrabold text-white text-lg mb-2">Harvard Style</h3>
+                <p className="text-xs text-slate-400 leading-relaxed mb-6">
+                  Template satu kolom klasik berbasis Times New Roman. Terbukti paling efektif melewati penyaringan sistem ATS dan disukai rekruter korporasi besar.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-bold text-indigo-400 group-hover:text-indigo-300 transition-colors">
+                <span>Gunakan Template Ini</span>
+                <ArrowRight size={14} className="group-hover:translate-x-1 transition-transform" />
+              </div>
+            </div>
+
+            {/* Card 2: Modern Style (Coming Soon) */}
+            <div className="relative bg-white/1 border border-white/5 rounded-2xl p-6 flex flex-col justify-between opacity-60">
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-10 h-10 bg-white/5 border border-white/10 text-slate-400 rounded-xl flex items-center justify-center font-bold text-sm">
+                    02
+                  </div>
+                  <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-0.5 rounded-full border border-white/10 uppercase tracking-wider">
+                    Coming Soon
+                  </span>
+                </div>
+                <h3 className="font-heading font-extrabold text-slate-400 text-lg mb-2">Modern Minimalist</h3>
+                <p className="text-xs text-slate-500 leading-relaxed mb-6">
+                  Layout modern dengan font sans-serif bersih, aksen warna indigo lembut, dan pembatas baris yang stylish. Sempurna untuk industri kreatif dan startup.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-bold text-slate-500">
+                <span>Belum Tersedia</span>
+              </div>
+            </div>
+
+            {/* Card 3: Creative Style (Coming Soon) */}
+            <div className="relative bg-white/1 border border-white/5 rounded-2xl p-6 flex flex-col justify-between opacity-60">
+              <div>
+                <div className="flex justify-between items-start mb-4">
+                  <div className="w-10 h-10 bg-white/5 border border-white/10 text-slate-400 rounded-xl flex items-center justify-center font-bold text-sm">
+                    03
+                  </div>
+                  <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-0.5 rounded-full border border-white/10 uppercase tracking-wider">
+                    Coming Soon
+                  </span>
+                </div>
+                <h3 className="font-heading font-extrabold text-slate-400 text-lg mb-2">Visual Creative</h3>
+                <p className="text-xs text-slate-500 leading-relaxed mb-6">
+                  Desain dua kolom dengan sidebar kontak kiri, grafik level skill visual, dan ruang untuk portofolio singkat. Direkomendasikan untuk Desainer dan Developer.
+                </p>
+              </div>
+              <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-bold text-slate-500">
+                <span>Belum Tersedia</span>
+              </div>
+            </div>
+
+          </div>
+        </main>
+      </div>
+    );
+  }
+
   return (
     <div className="min-h-screen bg-slate-50 pb-20 sm:pb-28 md:pb-32 font-sans text-slate-800 overflow-x-hidden selection:bg-blue-500/10 selection:text-blue-900">
       
@@ -916,99 +1142,53 @@ export default function CvBuilder() {
              </Link>
              <div>
                 <h1 className="font-heading font-extrabold text-base sm:text-lg text-slate-800 leading-tight">Harvard CV Builder</h1>
-                <p className="text-[11px] sm:text-xs text-slate-400">Draft Auto-saved</p>
+                <div className="flex items-center gap-2 mt-0.5">
+                  <p className="text-[11px] sm:text-xs text-slate-400">Draft Auto-saved</p>
+                  <span className="text-slate-300 text-xs">•</span>
+                  <button
+                    onClick={() => setHasSelectedTemplate(false)}
+                    className="text-[11px] sm:text-xs text-blue-600 hover:text-blue-700 font-bold hover:underline transition cursor-pointer"
+                  >
+                    Ubah Template
+                  </button>
+                </div>
              </div>
           </div>
           
-          <button 
-            onClick={handleDownloadPDF}
-            disabled={isGeneratingPdf}
-            className="px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-70"
-          >
-            {isGeneratingPdf ? <Loader2 className="animate-spin" size={16}/> : <Save size={16} />} 
-            {isGeneratingPdf ? "Membuat PDF..." : "Export PDF"}
-          </button>
+          <div className="flex items-center gap-2 sm:gap-3">
+            <button 
+              onClick={handleDownloadPDF}
+              disabled={isGeneratingPdf}
+              className="px-4 sm:px-5 py-2.5 bg-blue-600 hover:bg-blue-700 text-white rounded-xl font-bold text-sm flex items-center gap-2 transition-all shadow-lg shadow-blue-500/20 active:scale-95 disabled:opacity-70"
+            >
+              {isGeneratingPdf ? <Loader2 className="animate-spin" size={16}/> : <Save size={16} />} 
+              {isGeneratingPdf ? "Membuat PDF..." : "Export PDF"}
+            </button>
+          </div>
         </div>
       </div>
 
       <div className="max-w-[1400px] mx-auto mt-6 sm:mt-10 px-4 sm:px-6 space-y-6">
         
-        {/* Mulai Dari Mana */}
-        <section className="relative overflow-hidden bg-white p-5 sm:p-7 rounded-2xl border border-slate-200 shadow-md">
-          <div className="mb-4 sm:mb-5">
-            <h2 className="text-lg sm:text-xl font-heading font-extrabold text-slate-800">Mulai Dari Mana?</h2>
-            <p className="text-xs sm:text-sm text-slate-500 mt-1">Pilih buat CV baru dari nol, atau upload CV lama agar form terisi otomatis.</p>
-          </div>
-
-          <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-            <button
-              onClick={() => {
-                setBuilderMode('new');
-                resetToNewCv();
-              }}
-              className={`w-full p-4 rounded-xl border text-left transition-all ${
-                builderMode === 'new'
-                  ? 'border-blue-500 bg-blue-50/80 shadow-md shadow-blue-500/10'
-                  : 'border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:bg-blue-50/40'
-              }`}
-            >
-              <p className="text-sm font-bold text-slate-800">Buat CV Baru</p>
-              <p className="text-xs text-slate-400 mt-1">Mulai dari form kosong.</p>
-            </button>
-
-            <button
-              onClick={() => {
-                setBuilderMode('edit');
-                setImportNotice('');
-              }}
-              className={`w-full p-4 rounded-xl border text-left transition-all ${
-                builderMode === 'edit'
-                  ? 'border-blue-500 bg-blue-50/80 shadow-md shadow-blue-500/10'
-                  : 'border-slate-200 bg-white text-slate-500 hover:border-blue-300 hover:bg-blue-50/40'
-              }`}
-            >
-              <p className="text-sm font-bold text-slate-800">Edit CV Existing</p>
-              <p className="text-xs text-slate-400 mt-1">Upload PDF lalu biarkan AI mendeteksi isinya.</p>
-            </button>
-          </div>
-
-          {builderMode === 'edit' && (
-            <div className="mt-5 rounded-xl border border-dashed border-blue-200 bg-blue-50/20 p-4 sm:p-5">
-              <label className="block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2">Upload CV PDF</label>
-              <div className="flex flex-col sm:flex-row gap-3 sm:items-center">
-                <label className="flex-1 cursor-pointer rounded-xl border border-slate-300 bg-white px-4 py-3 text-sm text-slate-600 hover:border-blue-400 hover:bg-blue-50/40 transition">
-                  <div className="flex items-center gap-2">
-                    <UploadCloud size={16} className="text-blue-500" />
-                    <span>{existingCvFile ? existingCvFile.name : 'Pilih file CV (.pdf)'}</span>
-                  </div>
-                  <input
-                    type="file"
-                    accept="application/pdf"
-                    className="hidden"
-                    onChange={(e) => setExistingCvFile(e.target.files?.[0] || null)}
-                  />
-                </label>
-
-                <button
-                  onClick={handleImportExistingCv}
-                  disabled={isImportingCv || !existingCvFile}
-                  className="px-5 py-3 rounded-xl bg-blue-600 hover:bg-blue-700 text-white text-sm font-bold transition flex items-center justify-center gap-2 disabled:opacity-60 disabled:cursor-not-allowed"
-                >
-                  {isImportingCv ? <Loader2 size={16} className="animate-spin" /> : <Sparkles size={16} />}
-                  {isImportingCv ? 'Deteksi Isi CV...' : 'Deteksi & Isi Form'}
-                </button>
-              </div>
-
-              <p className="text-xs text-slate-500 mt-3">AI akan membaca dan memetakan datanya ke formulir secara otomatis.</p>
+        {/* Import CV Banner */}
+        <div className="bg-gradient-to-r from-violet-50 via-purple-50/30 to-violet-50 p-5 rounded-2xl border border-violet-100 shadow-sm flex flex-col md:flex-row items-start md:items-center justify-between gap-4">
+          <div className="flex items-start sm:items-center gap-3">
+            <div className="w-10 h-10 bg-violet-100 text-violet-700 rounded-xl flex items-center justify-center shrink-0">
+              <Upload size={18} />
             </div>
-          )}
-
-          {importNotice && (
-            <div className="mt-4 rounded-xl border border-emerald-300 bg-emerald-50 px-4 py-3 text-sm text-emerald-700">
-              {importNotice}
+            <div>
+              <h3 className="text-sm font-bold text-slate-800">Sudah punya CV sebelumnya?</h3>
+              <p className="text-xs text-slate-500 mt-0.5 font-medium">Upload di sini untuk mendeteksi data CV lama dan mengisi form secara otomatis.</p>
             </div>
-          )}
-        </section>
+          </div>
+          <button
+            onClick={() => { setIsImportModalOpen(true); setImportError(null); setImportSuccess(false); setSelectedFile(null); }}
+            className="w-full md:w-auto px-5 py-2.5 bg-violet-600 hover:bg-violet-700 text-white rounded-xl font-bold text-xs flex items-center justify-center gap-2 transition-all shadow-md shadow-violet-500/10 active:scale-95 shrink-0 cursor-pointer"
+          >
+            <Upload size={14} />
+            Import CV
+          </button>
+        </div>
 
         {/* 2-Column Sidebar + Tab Layout */}
         <div className="grid grid-cols-1 lg:grid-cols-[320px_1fr] gap-6 items-start">
@@ -1118,15 +1298,15 @@ export default function CvBuilder() {
                     <label className={labelClass}>Professional Summary</label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full sm:w-auto">
                       <MagicButton 
-                        onClick={() => handlePolish('summary', 'enhance', personalInfo.summary, 'summary-enhance', (val) => setPersonalInfo(p => ({...p, summary: val})))} 
-                        loading={loadingAI === 'summary-enhance'} 
-                        label="AI Enhance" 
+                        onClick={() => handlePolish('summary', 'id', personalInfo.summary, 'summary-id', (val) => setPersonalInfo(p => ({...p, summary: val})))} 
+                        loading={loadingAI === 'summary-id'} 
+                        label="Polish ID" 
                         variant="enhance"
                       />
                       <MagicButton 
-                        onClick={() => handlePolish('summary', 'translate', personalInfo.summary, 'summary-translate', (val) => setPersonalInfo(p => ({...p, summary: val})))} 
-                        loading={loadingAI === 'summary-translate'} 
-                        label="Enhance to EN" 
+                        onClick={() => handlePolish('summary', 'en', personalInfo.summary, 'summary-en', (val) => setPersonalInfo(p => ({...p, summary: val})))} 
+                        loading={loadingAI === 'summary-en'} 
+                        label="Polish EN" 
                         variant="translate"
                       />
                     </div>
@@ -1187,15 +1367,15 @@ export default function CvBuilder() {
                           <label className={labelClass}>What You Studied & Achievements</label>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full sm:w-auto">
                             <MagicButton
-                              onClick={() => handlePolish('bullet', 'enhance', edu.description, `edu-${edu.id}-enhance`, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
-                              loading={loadingAI === `edu-${edu.id}-enhance`}
-                              label="AI Enhance"
+                              onClick={() => handlePolish('bullet', 'id', edu.description, `edu-${edu.id}-id`, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
+                              loading={loadingAI === `edu-${edu.id}-id`}
+                              label="Polish ID"
                               variant="enhance"
                             />
                             <MagicButton
-                              onClick={() => handlePolish('bullet', 'translate', edu.description, `edu-${edu.id}-translate`, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
-                              loading={loadingAI === `edu-${edu.id}-translate`}
-                              label="Enhance to EN"
+                              onClick={() => handlePolish('bullet', 'en', edu.description, `edu-${edu.id}-en`, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
+                              loading={loadingAI === `edu-${edu.id}-en`}
+                              label="Polish EN"
                               variant="translate"
                             />
                           </div>
@@ -1253,15 +1433,15 @@ export default function CvBuilder() {
                           <label className={labelClass}>Description (Bullet Points)</label>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full sm:w-auto">
                             <MagicButton
-                              onClick={() => handlePolish('bullet', 'enhance', exp.description, `exp-${exp.id}-enhance`, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))}
-                              loading={loadingAI === `exp-${exp.id}-enhance`}
-                              label="AI Enhance"
+                              onClick={() => handlePolish('bullet', 'id', exp.description, `exp-${exp.id}-id`, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))}
+                              loading={loadingAI === `exp-${exp.id}-id`}
+                              label="Polish ID"
                               variant="enhance"
                             />
                             <MagicButton
-                              onClick={() => handlePolish('bullet', 'translate', exp.description, `exp-${exp.id}-translate`, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))}
-                              loading={loadingAI === `exp-${exp.id}-translate`}
-                              label="Enhance to EN"
+                              onClick={() => handlePolish('bullet', 'en', exp.description, `exp-${exp.id}-en`, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))}
+                              loading={loadingAI === `exp-${exp.id}-en`}
+                              label="Polish EN"
                               variant="translate"
                             />
                           </div>
@@ -1313,15 +1493,15 @@ export default function CvBuilder() {
                           <label className={labelClass}>Description</label>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full sm:w-auto">
                             <MagicButton
-                              onClick={() => handlePolish('bullet', 'enhance', proj.description, `proj-${proj.id}-enhance`, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
-                              loading={loadingAI === `proj-${proj.id}-enhance`}
-                              label="AI Enhance"
+                              onClick={() => handlePolish('bullet', 'id', proj.description, `proj-${proj.id}-id`, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
+                              loading={loadingAI === `proj-${proj.id}-id`}
+                              label="Polish ID"
                               variant="enhance"
                             />
                             <MagicButton
-                              onClick={() => handlePolish('bullet', 'translate', proj.description, `proj-${proj.id}-translate`, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
-                              loading={loadingAI === `proj-${proj.id}-translate`}
-                              label="Enhance to EN"
+                              onClick={() => handlePolish('bullet', 'en', proj.description, `proj-${proj.id}-en`, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
+                              loading={loadingAI === `proj-${proj.id}-en`}
+                              label="Polish EN"
                               variant="translate"
                             />
                           </div>
@@ -1554,25 +1734,25 @@ export default function CvBuilder() {
                                 <MagicButton
                                   onClick={() => handlePolish(
                                     'bullet',
-                                    'enhance',
+                                    'id',
                                     item.description,
-                                    `custom-${section.id}-entry-${item.id}-enhance`,
+                                    `custom-${section.id}-entry-${item.id}-id`,
                                     (val) => updateCustomSectionItem(section.id, item.id, 'description', val),
                                   )}
-                                  loading={loadingAI === `custom-${section.id}-entry-${item.id}-enhance`}
-                                  label="AI Enhance"
+                                  loading={loadingAI === `custom-${section.id}-entry-${item.id}-id`}
+                                  label="Polish ID"
                                   variant="enhance"
                                 />
                                 <MagicButton
                                   onClick={() => handlePolish(
                                     'bullet',
-                                    'translate',
+                                    'en',
                                     item.description,
-                                    `custom-${section.id}-entry-${item.id}-translate`,
+                                    `custom-${section.id}-entry-${item.id}-en`,
                                     (val) => updateCustomSectionItem(section.id, item.id, 'description', val),
                                   )}
-                                  loading={loadingAI === `custom-${section.id}-entry-${item.id}-translate`}
-                                  label="Enhance to EN"
+                                  loading={loadingAI === `custom-${section.id}-entry-${item.id}-en`}
+                                  label="Polish EN"
                                   variant="translate"
                                 />
                               </div>
@@ -1607,6 +1787,146 @@ export default function CvBuilder() {
           </div>
         </div>
       </div>
+
+      {/* Import CV Modal */}
+      {isImportModalOpen && (
+        <div className="fixed inset-0 z-50 bg-slate-900/60 backdrop-blur-sm flex items-center justify-center p-4">
+          <div className="w-full max-w-lg bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden">
+            {/* Modal Header */}
+            <div className="flex items-center justify-between px-6 py-5 border-b border-slate-100">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 bg-violet-50 text-violet-600 rounded-xl flex items-center justify-center">
+                  <Upload size={20} />
+                </div>
+                <div>
+                  <h2 className="text-base font-extrabold text-slate-800 font-heading">Import CV Lama</h2>
+                  <p className="text-xs text-slate-400 mt-0.5">AI akan otomatis mengisi form dari CV kamu</p>
+                </div>
+              </div>
+              <button
+                onClick={() => { setIsImportModalOpen(false); setSelectedFile(null); setImportError(null); }}
+                className="w-8 h-8 flex items-center justify-center rounded-lg border border-slate-200 text-slate-400 hover:text-slate-700 transition"
+              >
+                <X size={16} />
+              </button>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6 space-y-4">
+
+              {/* Success State */}
+              {importSuccess ? (
+                <div className="flex flex-col items-center justify-center py-10 gap-3">
+                  <div className="w-16 h-16 bg-emerald-50 rounded-full flex items-center justify-center animate-bounce">
+                    <CheckCircle2 className="text-emerald-500" size={32} />
+                  </div>
+                  <p className="text-base font-bold text-slate-800">CV berhasil diimpor!</p>
+                  <p className="text-xs text-slate-500 text-center">Semua data sudah diisi otomatis. Silakan periksa dan edit sesuai kebutuhan.</p>
+                </div>
+              ) : (
+                <>
+                  {/* Drop Zone */}
+                  <div
+                    onDragOver={(e) => { e.preventDefault(); setDragOver(true); }}
+                    onDragLeave={() => setDragOver(false)}
+                    onDrop={(e) => {
+                      e.preventDefault();
+                      setDragOver(false);
+                      const file = e.dataTransfer.files[0];
+                      if (file) handleFileSelect(file);
+                    }}
+                    onClick={() => fileInputRef.current?.click()}
+                    className={`relative cursor-pointer border-2 border-dashed rounded-xl p-8 text-center transition-all duration-200 ${
+                      dragOver
+                        ? 'border-violet-400 bg-violet-50/60 scale-[1.01]'
+                        : selectedFile
+                          ? 'border-emerald-400 bg-emerald-50/50'
+                          : 'border-slate-300 bg-slate-50 hover:border-violet-400 hover:bg-violet-50/30'
+                    }`}
+                  >
+                    <input
+                      ref={fileInputRef}
+                      type="file"
+                      accept=".pdf,.jpg,.jpeg,.png,.webp,.txt"
+                      className="hidden"
+                      onChange={(e) => {
+                        const file = e.target.files?.[0];
+                        if (file) handleFileSelect(file);
+                      }}
+                    />
+
+                    {selectedFile ? (
+                      <div className="flex flex-col items-center gap-2">
+                        <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
+                          <FileText className="text-emerald-600" size={24} />
+                        </div>
+                        <p className="text-sm font-bold text-emerald-700">{selectedFile.name}</p>
+                        <p className="text-xs text-slate-400">{(selectedFile.size / 1024).toFixed(1)} KB — Klik untuk ganti file</p>
+                      </div>
+                    ) : (
+                      <div className="flex flex-col items-center gap-3">
+                        <div className="w-14 h-14 bg-slate-100 rounded-2xl flex items-center justify-center">
+                          <Upload className="text-slate-400" size={28} />
+                        </div>
+                        <div>
+                          <p className="text-sm font-bold text-slate-700">Drag & drop file CV kamu di sini</p>
+                          <p className="text-xs text-slate-400 mt-1">atau klik untuk pilih file</p>
+                        </div>
+                        <div className="flex gap-2 flex-wrap justify-center">
+                          {['PDF', 'JPG', 'PNG', 'TXT'].map(fmt => (
+                            <span key={fmt} className="px-2 py-0.5 bg-slate-200 text-slate-600 rounded text-[10px] font-bold">{fmt}</span>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Warning */}
+                  <div className="flex items-start gap-2 px-3 py-2.5 bg-amber-50 border border-amber-200 rounded-lg">
+                    <AlertCircle size={14} className="text-amber-500 shrink-0 mt-0.5" />
+                    <p className="text-xs text-amber-700">Data form yang ada saat ini akan <strong>digantikan</strong> oleh data dari CV yang diupload.</p>
+                  </div>
+
+                  {/* Error */}
+                  {importError && (
+                    <div className="flex items-start gap-2 px-3 py-2.5 bg-red-50 border border-red-200 rounded-lg">
+                      <AlertCircle size={14} className="text-red-500 shrink-0 mt-0.5" />
+                      <p className="text-xs text-red-700">{importError}</p>
+                    </div>
+                  )}
+
+                  {/* Action Buttons */}
+                  <div className="flex gap-3 pt-1">
+                    <button
+                      onClick={() => { setIsImportModalOpen(false); setSelectedFile(null); setImportError(null); }}
+                      className="flex-1 py-2.5 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition"
+                    >
+                      Batal
+                    </button>
+                    <button
+                      onClick={handleImportCv}
+                      disabled={!selectedFile || isParsingCv}
+                      className="flex-1 py-2.5 bg-gradient-to-r from-violet-600 to-purple-600 hover:from-violet-700 hover:to-purple-700 text-white rounded-xl text-sm font-bold flex items-center justify-center gap-2 transition-all shadow-lg shadow-violet-500/20 disabled:opacity-50 disabled:cursor-not-allowed active:scale-[0.98]"
+                    >
+                      {isParsingCv ? (
+                        <>
+                          <Loader2 className="animate-spin" size={15} />
+                          AI sedang membaca CV...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles size={15} />
+                          Import & Auto-Fill
+                        </>
+                      )}
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Floating button for realtime preview (visible on both mobile and desktop) */}
       <button

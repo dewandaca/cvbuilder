@@ -25,17 +25,10 @@ async function requestApi<T>(input: RequestInfo | URL, init: RequestInit): Promi
   return payload.data as T;
 }
 
-export async function extractCvToBuilderDataApi<T>(formData: FormData): Promise<T | null> {
-  return requestApi<T | null>('/api/llama/extract-cv-to-builder', {
-    method: 'POST',
-    body: formData,
-  });
-}
-
 export async function polishTextApi(
   text: string,
   type: 'summary' | 'bullet',
-  mode: 'enhance' | 'translate' = 'enhance',
+  mode: 'id' | 'en' = 'id',
 ): Promise<string> {
   return requestApi<string>('/api/llama/polish-text', {
     method: 'POST',
@@ -55,6 +48,13 @@ export async function reviewCvApi<T>(formData: FormData): Promise<T | null> {
 
 export async function matchRoleApi<T>(formData: FormData): Promise<T | null> {
   return requestApi<T | null>('/api/llama/match-role', {
+    method: 'POST',
+    body: formData,
+  });
+}
+
+export async function parseCvApi<T>(formData: FormData): Promise<T> {
+  return requestApi<T>('/api/llama/parse-cv', {
     method: 'POST',
     body: formData,
   });

@@ -9,6 +9,8 @@ const nextConfig: NextConfig = {
       tailwindcss: path.resolve("./node_modules/tailwindcss"),
     },
   },
+  // Prevent pdf-parse from being bundled client-side (it uses Node.js built-ins)
+  serverExternalPackages: ['pdf-parse'],
 };
 
 export default nextConfig;

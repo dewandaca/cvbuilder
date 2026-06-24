@@ -4,7 +4,7 @@ import { polishText } from '@/app/actions';
 type PolishRequestBody = {
   text?: string;
   type?: 'summary' | 'bullet';
-  mode?: 'enhance' | 'translate';
+  mode?: 'id' | 'en';
 };
 
 export async function POST(request: Request) {
@@ -15,7 +15,7 @@ export async function POST(request: Request) {
       return NextResponse.json({ error: 'text and type are required' }, { status: 400 });
     }
 
-    const mode = body.mode === 'translate' ? 'translate' : 'enhance';
+    const mode = body.mode === 'en' ? 'en' : 'id';
     const data = await polishText(body.text, body.type, mode);
 
     return NextResponse.json({ data });
