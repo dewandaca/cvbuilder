@@ -411,7 +411,7 @@ export default function Home() {
                 Apa Yang Benar-benar Anda Dapatkan?
               </h2>
               <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                Kami tidak menjanjikan kelulusan mutlak, tetapi kami memastikan CV Anda memenuhi seluruh kriteria teknis terbaik untuk menarik perhatian rekruter global.
+                Kami tidak menjanjikan kelulusan mutlak, tetapi kami memastikan CV Anda memenuhi seluruh kriteria teknis terbaik agar menonjol di hadapan rekruter.
               </p>
               <div className="w-16 h-1 bg-brand-primary rounded-full" />
             </div>
@@ -424,9 +424,9 @@ export default function Home() {
                 <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mb-5 text-brand-primary">
                   <FileText size={24} />
                 </div>
-                <h3 className="font-heading font-extrabold text-slate-900 text-xl mb-3 tracking-tight">Format Layout Berstandar Dunia</h3>
+                <h3 className="font-heading font-extrabold text-slate-900 text-xl mb-3 tracking-tight">Format Layout Standar Industri</h3>
                 <p className="text-slate-500 text-sm leading-relaxed">
-                  Kami mengadopsi standar Harvard CV yang sangat populer di kalangan rekruter internasional. Menggunakan font Times New Roman, struktur satu kolom, dan navigasi data berurutan yang lolos pemindaian ATS tanpa hambatan.
+                  Kami mengadopsi standar Harvard CV yang populer di dunia profesional. Menggunakan font Times New Roman, struktur satu kolom, dan navigasi data berurutan yang mempermudah pemindaian ATS.
                 </p>
               </div>
 

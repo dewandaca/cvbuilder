@@ -1,0 +1,36 @@
+@startuml
+title Activity Diagram: Pembuatan CV
+
+|Pengguna|
+start
+:Memilih "Mulai Buat CV";
+
+|Sistem|
+:Menampilkan halaman pilihan template;
+
+|Pengguna|
+:Memilih template CV;
+
+|Sistem|
+:Membuka halaman CV Builder;
+
+|Pengguna|
+if (Apakah import CV?) then (Ya)
+  :Upload CV;
+  
+  |Sistem|
+  :Sistem ekstraksi data;
+  :Form terisi otomatis;
+  
+  |Pengguna|
+else (Tidak)
+  :Pengguna mengisi data manual;
+endif
+
+:Pengguna melengkapi data CV;
+
+|Sistem|
+:Preview diperbarui;
+
+stop
+@enduml

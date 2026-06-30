@@ -1,34 +1,17 @@
 @startuml
-title Activity Diagram: Import CV Lama
+title Activity Diagram: Import CV
 
 |Pengguna|
 start
-:Klik tombol "Import CV Lama";
-:Memilih file CV\n(PDF, gambar, atau TXT);
+:Memilih Import CV;
+:Upload PDF;
 
 |Sistem|
-if (Format file valid?) then (Ya)
-  :Mengekstrak teks\ndari file;
-  :Mengirim teks ke AI\nuntuk dianalisis;
-
-  |AI (Llama 3.3-70B)|
-  :Membaca dan mengurai\ndata dari teks CV;
-  :Mengembalikan data\ndalam format terstruktur;
-
-  |Sistem|
-  if (Parsing berhasil?) then (Ya)
-    :Mengisi semua form CV\nsecara otomatis;
-    :Menampilkan notifikasi sukses;
-  else (Tidak)
-    :Menampilkan pesan error;
-  endif
-
-else (Tidak)
-  :Menampilkan pesan\n"Format tidak didukung";
-endif
+:Membaca file;
+:Ekstraksi isi CV;
+:Form terisi otomatis;
 
 |Pengguna|
-:Memeriksa dan mengoreksi\ndata yang terisi;
-
+:Mengecek hasil;
 stop
 @enduml

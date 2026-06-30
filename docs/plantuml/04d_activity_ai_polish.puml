@@ -1,0 +1,29 @@
+@startuml
+title Activity Diagram: Peningkatan Penulisan dengan LLM
+
+|Pengguna|
+start
+:Mengisi teks pada form;
+:Memilih bahasa output;
+:Klik "Polish";
+
+|Sistem|
+if (Teks kosong?) then (Ya)
+  :Tampilkan peringatan;
+  stop
+else (Tidak)
+  :Kirim ke layanan LLM;
+endif
+
+|LLM|
+:Memperbaiki kalimat;
+:Mengembalikan hasil;
+
+|Sistem|
+:Menampilkan hasil di form;
+:Preview diperbarui;
+
+|Pengguna|
+:Meninjau hasil;
+stop
+@enduml

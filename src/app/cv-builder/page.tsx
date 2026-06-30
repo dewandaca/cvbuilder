@@ -1423,7 +1423,7 @@ export default function CvBuilder() {
                 </div>
                 <h3 className="font-heading font-extrabold text-white text-lg mb-2">Harvard Style</h3>
                 <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                  Template satu kolom klasik berbasis Times New Roman. Terbukti paling efektif melewati penyaringan sistem ATS dan disukai rekruter korporasi besar.
+                  Template satu kolom klasik berbasis Times New Roman. Sangat ramah penyaringan sistem ATS dan disukai oleh banyak rekruter.
                 </p>
               </div>
               <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-bold text-indigo-400 group-hover:text-indigo-300 transition-colors">
