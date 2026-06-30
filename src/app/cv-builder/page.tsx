@@ -588,9 +588,12 @@ const ModernCVLivePreview = ({ data }: { data: CVData & { profilePhoto?: string 
             return (
               <div key={edu.id} className="mb-2 text-[10.5px] leading-[1.4]">
                 <div className="flex items-end justify-between gap-4">
-                  <p className="font-bold">{edu.school}{edu.major ? ` - ` : ''}<span className="italic">{edu.major}</span>{edu.gpa ? ` | GPA: ${edu.gpa}` : ''}</p>
+                  <p className="font-bold">{edu.school}</p>
                   <p className="shrink-0">{dateRange}</p>
                 </div>
+                {(edu.major || edu.gpa) && (
+                  <p className="italic">{edu.major}{edu.gpa ? ` | GPA: ${edu.gpa}` : ''}</p>
+                )}
                 {bullets.length > 0 && (
                   <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
                     {bullets.map((item, i) => <li key={i}>{item}</li>)}
@@ -745,7 +748,7 @@ const ModernCVLivePreview = ({ data }: { data: CVData & { profilePhoto?: string 
             </div>
             {/* Name + Contact */}
             <div style={{ flex: 1 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 'bold', color: NAVY, textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 8 }}>
+              <h1 style={{ fontSize: 22, fontWeight: 'bold', color: NAVY, textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 12 }}>
                 {data.personalInfo.fullName || 'YOUR NAME'}
               </h1>
               {contactFields.map((field, i) => (

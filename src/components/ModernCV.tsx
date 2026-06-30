@@ -169,7 +169,7 @@ const styles = StyleSheet.create({
   page: {
     padding: 30,
     fontFamily: 'Helvetica',
-    fontSize: 10,
+    fontSize: 10.5,
     lineHeight: 1.4,
     color: '#1a1a1a',
     backgroundColor: '#ffffff',
@@ -207,7 +207,7 @@ const styles = StyleSheet.create({
     color: BLUE,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginBottom: 8,
+    marginBottom: 12,
   },
   contactRow: {
     flexDirection: 'row',
@@ -233,8 +233,8 @@ const styles = StyleSheet.create({
     color: BLUE,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginTop: 10,
-    marginBottom: 4,
+    marginTop: 12,
+    marginBottom: 6,
     paddingBottom: 2,
     borderBottomWidth: 1.5,
     borderBottomColor: BLUE,
@@ -245,7 +245,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'flex-end',
-    marginBottom: 1,
+    marginBottom: 2,
   },
   bold: { fontFamily: 'Helvetica-Bold' },
   italic: { fontFamily: 'Helvetica-Oblique' },
@@ -253,7 +253,7 @@ const styles = StyleSheet.create({
   // --- BULLETS ---
   bulletPoint: {
     flexDirection: 'row',
-    marginLeft: 8,
+    marginLeft: 10,
     marginBottom: 2,
   },
   bullet: {
@@ -271,7 +271,6 @@ const styles = StyleSheet.create({
   // Summary text
   summaryText: {
     textAlign: 'justify',
-    lineHeight: 1.5,
     color: '#1a1a1a',
   },
 });
@@ -337,15 +336,18 @@ export const ModernCV = ({ data }: { data: CVData }) => {
         <View key="education">
           <Text style={styles.sectionTitle}>{data.sectionTitles?.education || 'Education'}</Text>
           {data.educations.map((edu) => (
-            <View key={edu.id} style={{ marginBottom: 6 }}>
+            <View key={edu.id} style={{ marginBottom: 8 }}>
               <View style={styles.row}>
-                <Text style={styles.bold}>
-                  {edu.major ? `${edu.school} - ` : edu.school}
-                  {edu.major && <Text style={styles.italic}>{edu.major}</Text>}
-                  {edu.gpa ? ` | GPA: ${edu.gpa}` : ''}
-                </Text>
+                <Text style={styles.bold}>{edu.school}</Text>
                 <Text>{formatDateRange(edu.startDate, edu.endDate, edu.isCurrent)}</Text>
               </View>
+              {(edu.major || edu.gpa) && (
+                <View style={styles.row}>
+                  <Text style={styles.italic}>
+                    {edu.major}{edu.gpa ? ` | GPA: ${edu.gpa}` : ''}
+                  </Text>
+                </View>
+              )}
               {edu.description ? (
                 <BulletList text={edu.description} />
               ) : null}
@@ -391,15 +393,15 @@ export const ModernCV = ({ data }: { data: CVData }) => {
         <View key="skills">
           <Text style={styles.sectionTitle}>{data.sectionTitles?.skills || 'Skills'}</Text>
           {data.skills.hard && (
-            <View style={styles.bulletPoint}>
+            <View style={styles.bulletPoint} wrap={false}>
               <Text style={styles.bullet}>•</Text>
               <Text style={styles.bulletText}>
-                <Text style={styles.bold}>Desain Grafis: </Text>{data.skills.hard}
+                <Text style={styles.bold}>Hard Skills: </Text>{data.skills.hard}
               </Text>
             </View>
           )}
           {data.skills.soft && (
-            <View style={styles.bulletPoint}>
+            <View style={styles.bulletPoint} wrap={false}>
               <Text style={styles.bullet}>•</Text>
               <Text style={styles.bulletText}>
                 <Text style={styles.bold}>Soft Skills: </Text>{data.skills.soft}
