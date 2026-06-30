@@ -187,14 +187,10 @@ export default function Home() {
                     <span className="font-bold text-[10px] uppercase tracking-wider text-slate-400">Hasil Rapi AI (Format ATS):</span>
                     {simStep === 2 && <span className="text-emerald-400 font-semibold text-[10px]">Sukses!</span>}
                   </div>
-                  <div className="space-y-1">
-                    <p className="font-bold text-slate-100">Marketing Manager | Tokopedia</p>
-                    <p className="text-[10px] text-slate-400 italic mb-2">2021 – Present</p>
-                    <ul className="list-disc pl-4 space-y-1.5 text-[11px] text-slate-300">
-                      <li>Merancang dan mengeksekusi kampanye pemasaran digital spesial Ramadhan yang berhasil meningkatkan volume penjualan sebesar 20% YoY.</li>
-                      <li>Mengoptimalkan strategi promosi media sosial terintegrasi untuk memperluas jangkauan brand.</li>
-                    </ul>
-                  </div>
+                  <ul className="list-disc pl-4 space-y-1.5 text-[11px] text-slate-300">
+                    <li>Merancang &amp; mengeksekusi kampanye Ramadhan yang meningkatkan penjualan <span className="text-emerald-400 font-semibold">20% YoY</span>.</li>
+                    <li>Mengoptimalkan strategi promosi media sosial untuk memperluas jangkauan brand.</li>
+                  </ul>
                 </div>
               </div>
 
@@ -259,32 +255,32 @@ export default function Home() {
 
             {/* Step 2 */}
             <div className="grid md:grid-cols-12 gap-8 items-center">
-              <div className="md:col-span-7 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition">
-                <div className="bg-white rounded-xl border border-slate-200 p-5 shadow-sm space-y-3">
+              <div className="md:col-span-7 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition overflow-hidden">
+                <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <span className="text-xs font-bold text-slate-800">Kalimat Mentah</span>
-                    <button className="flex items-center gap-1.5 px-3 py-1 bg-brand-primary text-white text-[10px] font-bold rounded-full">
+                    <button className="flex items-center gap-1.5 px-3 py-1 bg-brand-primary text-white text-[10px] font-bold rounded-full shrink-0">
                       <Sparkles size={10} /> AI Polish
                     </button>
                   </div>
-                  <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100 italic">
+                  <p className="text-xs text-slate-600 bg-slate-50 p-2.5 rounded border border-slate-100 italic break-words">
                     &quot;saya bisa python dan biasa bikin dashboard database pendaftaran sekolah&quot;
                   </p>
-                  <p className="text-xs font-semibold text-emerald-600 mt-2">
+                  <p className="text-xs font-semibold text-emerald-600 mt-2 break-words">
                     ✓ Dioptimalkan AI: &quot;Mengembangkan dashboard basis data pendaftaran siswa berbasis Python.&quot;
                   </p>
                 </div>
               </div>
               <div className="md:col-span-5">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm">02</span>
-                  <h3 className="font-heading font-extrabold text-slate-900 text-2xl tracking-tight">Poles Instan dengan AI</h3>
+                  <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm shrink-0">02</span>
+                  <h3 className="font-heading font-extrabold text-slate-900 text-xl sm:text-2xl tracking-tight">Poles Instan dengan AI</h3>
                 </div>
                 <p className="text-slate-500 text-sm leading-relaxed mb-6">
-                  Cukup klik tombol **&quot;AI Enhance&quot;** pada kolom deskripsi. AI kami akan memodifikasi tata bahasa Anda menjadi kalimat aktif berstandar profesional. Bisa juga diterjemahkan ke Bahasa Inggris secara otomatis.
+                  Cukup klik tombol <strong>&quot;AI Enhance&quot;</strong> pada kolom deskripsi. AI kami akan memodifikasi tata bahasa Anda menjadi kalimat aktif berstandar profesional. Bisa juga diterjemahkan ke Bahasa Inggris secara otomatis.
                 </p>
-                <div className="flex gap-2">
-                  <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Bahasa Inggris & Indo</span>
+                <div className="flex flex-wrap gap-2">
+                  <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Bahasa Inggris &amp; Indo</span>
                   <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Diksi Profesional</span>
                 </div>
               </div>
@@ -294,29 +290,27 @@ export default function Home() {
             <div className="grid md:grid-cols-12 gap-8 items-center">
               <div className="md:col-span-5 order-2 md:order-1">
                 <div className="flex items-center gap-3 mb-4">
-                  <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm">03</span>
-                  <h3 className="font-heading font-extrabold text-slate-900 text-2xl tracking-tight">Pilih Layout & Unduh PDF</h3>
+                  <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm shrink-0">03</span>
+                  <h3 className="font-heading font-extrabold text-slate-900 text-xl sm:text-2xl tracking-tight">Pilih Layout &amp; Unduh PDF</h3>
                 </div>
                 <p className="text-slate-500 text-sm leading-relaxed mb-6">
                   Sistem langsung merender CV Anda secara real-time. Pilih template yang diinginkan (seperti Harvard style), tinjau previewnya, lalu klik export untuk mendapatkan file PDF resmi yang siap dikirim.
                 </p>
-                <div className="flex gap-2">
+                <div className="flex flex-wrap gap-2">
                   <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Ekspor Instan</span>
                   <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Tanpa Tanda Air</span>
                 </div>
               </div>
-              <div className="md:col-span-7 order-1 md:order-2 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition">
-                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center justify-between">
-                  <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded bg-red-100 text-red-600 flex items-center justify-center">
-                      <FileText size={20} />
-                    </div>
-                    <div>
-                      <p className="text-xs font-bold text-slate-800">CV_Dewanda_Harvard.pdf</p>
-                      <p className="text-[10px] text-slate-400">PDF Document · 120 KB</p>
-                    </div>
+              <div className="md:col-span-7 order-1 md:order-2 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition overflow-hidden">
+                <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center gap-3 min-w-0">
+                  <div className="w-10 h-10 rounded bg-red-100 text-red-600 flex items-center justify-center shrink-0">
+                    <FileText size={20} />
                   </div>
-                  <button className="flex items-center gap-1.5 px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors">
+                  <div className="flex-1 min-w-0">
+                    <p className="text-xs font-bold text-slate-800 truncate">CV_Dewanda_Harvard.pdf</p>
+                    <p className="text-[10px] text-slate-400">PDF Document · 120 KB</p>
+                  </div>
+                  <button className="flex items-center gap-1.5 px-3 sm:px-4 py-2 bg-slate-900 hover:bg-slate-800 text-white text-xs font-bold rounded-lg transition-colors shrink-0">
                     <Download size={14} /> Download
                   </button>
                 </div>

@@ -1,0 +1,44 @@
+@startuml
+title Struktur Navigasi Aplikasi NextCV
+
+skinparam defaultFontName Arial
+skinparam defaultFontSize 12
+skinparam rectangleRoundCorner 10
+skinparam rectangleBorderColor #555555
+skinparam rectangleBackgroundColor #FFFFFF
+skinparam ArrowColor #555555
+skinparam linetype ortho
+
+rectangle "NextCV\n(Halaman Utama)" as Root
+
+rectangle "Mulai Buat CV" as Menu1
+rectangle "Cara Kerja" as Menu2
+rectangle "Keunggulan / Fitur" as Menu3
+
+rectangle "CV Builder" as Builder
+
+rectangle "Import CV" as F1
+rectangle "Isi Form" as F2
+rectangle "AI Enhance" as F3
+
+rectangle "Preview CV" as Preview
+rectangle "Download PDF" as Download
+
+' === Navigasi dari Halaman Utama ===
+Root --> Menu1
+Root --> Menu2
+Root --> Menu3
+
+' === Masuk ke CV Builder ===
+Menu1 --> Builder
+
+' === Fitur di dalam CV Builder ===
+Builder --> F1
+Builder --> F2
+Builder --> F3
+
+' === Alur lanjutan setelah Isi Form ===
+F2 --> Preview
+Preview --> Download
+
+@enduml

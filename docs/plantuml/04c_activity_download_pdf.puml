@@ -1,0 +1,24 @@
+@startuml
+title Activity Diagram: Unduh CV sebagai PDF
+
+|Pengguna|
+start
+:Menyelesaikan pengisian form CV;
+:Meninjau preview CV;
+:Klik tombol "Download PDF";
+
+|Sistem|
+:Mengumpulkan seluruh data CV;
+:Membuat dokumen PDF\nberdasarkan template Harvard;
+
+if (PDF berhasil dibuat?) then (Ya)
+  :File PDF diunduh\notomatis ke perangkat pengguna;
+else (Tidak)
+  :Menampilkan pesan error;
+endif
+
+|Pengguna|
+:Menerima file PDF CV;
+
+stop
+@enduml

@@ -1,0 +1,48 @@
+@startuml
+
+
+start
+
+:Pengguna membuka aplikasi NextCV;
+:Halaman utama ditampilkan;
+
+if (Pengguna klik\n"Mulai Buat CV"?) then (Ya)
+
+  :Halaman CV Builder dibuka;
+
+  if (Ingin import\nCV lama?) then (Ya)
+    :Unggah file CV (PDF/gambar);
+    :Sistem memproses file\ndengan bantuan AI;
+    if (Berhasil diproses?) then (Ya)
+      :Form terisi otomatis;
+    else (Tidak)
+      :Tampilkan pesan error;
+    endif
+  else (Tidak)
+    :Pengguna mengisi form\ndata CV secara manual;
+  endif
+
+  :Pengguna melengkapi\ndata CV;
+
+  if (Ingin poles teks\ndengan AI?) then (Ya)
+    :Pengguna klik tombol AI Polish;
+    :AI memperbaiki\ndan merapikan teks;
+    :Hasil ditampilkan\ndi form;
+  else (Tidak)
+  endif
+
+  :Preview CV ditampilkan\nsecara real-time;
+
+  if (Siap unduh CV?) then (Ya)
+    :Klik tombol Download PDF;
+    :File PDF diunduh\nke perangkat;
+  else (Tidak)
+    :Pengguna mengedit\nkembali form;
+  endif
+
+else (Tidak)
+  :Pengguna membaca\ninformasi di halaman utama;
+endif
+
+stop
+@enduml

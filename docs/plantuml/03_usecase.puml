@@ -1,0 +1,37 @@
+@startuml
+title Use Case Diagram Aplikasi NextCV
+
+left to right direction
+
+actor "Pengguna" as User
+actor "Sistem AI" as AI
+
+rectangle "Aplikasi NextCV" {
+
+  usecase "Melihat halaman utama" as UC1
+  usecase "Mengisi data CV" as UC2
+  usecase "Mengimpor CV lama" as UC3
+  usecase "Mempoles teks dengan AI" as UC4
+  usecase "Melihat preview CV" as UC5
+  usecase "Mengunduh CV sebagai PDF" as UC6
+  usecase "Mengatur urutan section" as UC7
+  usecase "Menambah section kustom" as UC8
+  usecase "Parsing dokumen CV" as UC9
+
+}
+
+User --> UC1
+User --> UC2
+User --> UC3
+User --> UC4
+User --> UC5
+User --> UC6
+User --> UC7
+User --> UC8
+
+UC3 ..> UC2 : <<extend>>
+UC3 ..> UC9 : <<include>>
+UC4 ..> AI : <<uses>>
+UC9 ..> AI : <<uses>>
+
+@enduml

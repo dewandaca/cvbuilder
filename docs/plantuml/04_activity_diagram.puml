@@ -1,0 +1,78 @@
+@startuml
+title Activity Diagram Aplikasi NextCV
+
+|Pengguna|
+start
+
+' ==========================================
+' BAGIAN 1: IMPORT CV LAMA
+' ==========================================
+:Klik tombol "Import CV Lama";
+:Memilih file CV (PDF, gambar, atau TXT);
+
+|Sistem|
+if (Format file valid?) then (Ya)
+  :Mengekstrak teks dari file;
+  :Mengirim teks ke AI untuk dianalisis;
+
+  |AI|
+  :Membaca dan mengurai data dari teks CV;
+  :Mengembalikan data terstruktur;
+
+  |Sistem|
+  if (Parsing berhasil?) then (Ya)
+    :Mengisi semua form CV secara otomatis;
+  else (Tidak)
+    :Menampilkan pesan error;
+  endif
+
+else (Tidak)
+  :Menampilkan pesan "Format tidak didukung";
+endif
+
+' ==========================================
+' BAGIAN 2: PENGISIAN & AI POLISH
+' ==========================================
+|Pengguna|
+:Melengkapi atau mengoreksi data CV pada form;
+:Memilih teks yang ingin dipoles;
+:Memilih bahasa output (Indonesia / Inggris);
+:Klik tombol "AI Polish";
+
+|Sistem|
+if (Teks kosong?) then (Ya)
+  :Menampilkan peringatan;
+else (Tidak)
+  :Mengirim teks ke layanan AI;
+
+  |AI|
+  :Memperbaiki kalimat menjadi\nprofesional dan ATS-friendly;
+  :Mengembalikan hasil teks;
+
+  |Sistem|
+  :Menampilkan hasil pada form CV;
+  :Preview CV diperbarui secara otomatis;
+endif
+
+' ==========================================
+' BAGIAN 3: UNDUH PDF
+' ==========================================
+|Pengguna|
+:Meninjau preview CV;
+:Klik tombol "Download PDF";
+
+|Sistem|
+:Mengumpulkan seluruh data CV;
+:Membuat dokumen PDF berdasarkan template;
+
+if (PDF berhasil dibuat?) then (Ya)
+  :File PDF diunduh otomatis ke perangkat;
+else (Tidak)
+  :Menampilkan pesan error;
+endif
+
+|Pengguna|
+:Menerima file PDF CV;
+
+stop
+@enduml
