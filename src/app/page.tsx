@@ -1,16 +1,61 @@
 'use client'
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef, useCallback } from 'react';
 import Link from 'next/link';
 import { 
   FileText, ArrowRight, Sparkles, CheckCircle2, Zap, 
   Upload, Wand2, Download, ArrowUpRight, ChevronRight
 } from 'lucide-react';
 
+// ─── Scroll Animation Hook ────────────────────────────────────────────────────
+function useScrollReveal() {
+  const observe = useCallback((node: HTMLElement | null) => {
+    if (!node) return;
+    const observer = new IntersectionObserver(
+      (entries) => {
+        entries.forEach((entry) => {
+          if (entry.isIntersecting) {
+            entry.target.classList.add('is-visible');
+            observer.unobserve(entry.target);
+          }
+        });
+      },
+      { threshold: 0.12, rootMargin: '0px 0px -40px 0px' }
+    );
+    // Observe element itself and all its [data-reveal] children
+    observer.observe(node);
+    node.querySelectorAll('[data-reveal]').forEach((el) => observer.observe(el));
+  }, []);
+
+  return observe;
+}
+
 export default function Home() {
-  // AI Simulation State for the Hero Visual Mockup
   const [simStep, setSimStep] = useState<0 | 1 | 2>(0);
-  
+  const heroRef = useRef<HTMLDivElement>(null);
+  const howRef = useRef<HTMLElement>(null);
+  const importRef = useRef<HTMLElement>(null);
+  const featuresRef = useRef<HTMLElement>(null);
+  const ctaRef = useRef<HTMLElement>(null);
+
+  const scrollReveal = useScrollReveal();
+
+  // Hero entrance – trigger after mount
+  useEffect(() => {
+    const timeout = setTimeout(() => {
+      heroRef.current?.classList.add('is-visible');
+    }, 80);
+    return () => clearTimeout(timeout);
+  }, []);
+
+  // Attach scroll observers
+  useEffect(() => {
+    [howRef, importRef, featuresRef, ctaRef].forEach((ref) => {
+      if (ref.current) scrollReveal(ref.current);
+    });
+  }, [scrollReveal]);
+
+  // AI simulation cycle
   useEffect(() => {
     const timer = setInterval(() => {
       setSimStep((prev) => {
@@ -25,9 +70,8 @@ export default function Home() {
   return (
     <div className="min-h-screen bg-brand-bg font-sans text-slate-100 overflow-x-hidden selection:bg-brand-primary/40 selection:text-white">
       
-      {/* Global CSS overrides and utility classes */}
+      {/* ─── Global styles + animation keyframes ─── */}
       <style jsx global>{`
-        /* Dynamic font adjustments */
         h1, h2, h3, .font-heading {
           font-family: var(--font-bricolage), system-ui, sans-serif;
         }
@@ -35,12 +79,10 @@ export default function Home() {
           font-family: var(--font-manrope), system-ui, sans-serif;
         }
 
-        /* Exponential ease-out transition wrapper */
         .expo-transition {
           transition: all 0.5s cubic-bezier(0.16, 1, 0.3, 1);
         }
 
-        /* Smooth border glow */
         .glow-border {
           box-shadow: 0 0 0 1px rgba(255, 255, 255, 0.08), 0 4px 20px -2px rgba(0, 0, 0, 0.4);
         }
@@ -48,7 +90,6 @@ export default function Home() {
           box-shadow: 0 0 0 1px rgba(99, 102, 241, 0.25), 0 0 30px -5px rgba(99, 102, 241, 0.15), 0 10px 30px -10px rgba(0, 0, 0, 0.6);
         }
 
-        /* Grid Background Pattern */
         .brand-grid-pattern {
           background-image: 
             linear-gradient(to right, rgba(99, 102, 241, 0.04) 1px, transparent 1px),
@@ -56,6 +97,7 @@ export default function Home() {
           background-size: 56px 56px;
         }
 
+        /* ── Keyframes ── */
         @keyframes pulse-slow {
           0%, 100% { opacity: 0.12; transform: scale(1); }
           50% { opacity: 0.22; transform: scale(1.08); }
@@ -64,11 +106,73 @@ export default function Home() {
           animation: pulse-slow 8s ease-in-out infinite;
         }
 
+        @keyframes fadeUp {
+          from { opacity: 0; transform: translateY(28px); }
+          to   { opacity: 1; transform: translateY(0); }
+        }
+        @keyframes fadeIn {
+          from { opacity: 0; }
+          to   { opacity: 1; }
+        }
+        @keyframes slideLeft {
+          from { opacity: 0; transform: translateX(-36px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes slideRight {
+          from { opacity: 0; transform: translateX(36px); }
+          to   { opacity: 1; transform: translateX(0); }
+        }
+        @keyframes scaleIn {
+          from { opacity: 0; transform: scale(0.94); }
+          to   { opacity: 1; transform: scale(1); }
+        }
+
+        /* ── Reveal base state (hidden until .is-visible added) ── */
+        [data-reveal] {
+          opacity: 0;
+          will-change: opacity, transform;
+        }
+        [data-reveal="fade-up"]    { transform: translateY(28px); }
+        [data-reveal="fade-in"]    { transform: none; }
+        [data-reveal="slide-left"] { transform: translateX(-36px); }
+        [data-reveal="slide-right"]{ transform: translateX(36px); }
+        [data-reveal="scale-in"]   { transform: scale(0.94); }
+
+        /* ── When ancestor gets .is-visible, animate children ── */
+        .is-visible [data-reveal],
+        [data-reveal].is-visible {
+          animation-fill-mode: both;
+          animation-timing-function: cubic-bezier(0.16, 1, 0.3, 1);
+          animation-duration: 0.75s;
+          opacity: 1;
+          transform: none;
+        }
+        .is-visible [data-reveal="fade-up"],
+        [data-reveal="fade-up"].is-visible    { animation-name: fadeUp; }
+        .is-visible [data-reveal="fade-in"],
+        [data-reveal="fade-in"].is-visible    { animation-name: fadeIn; }
+        .is-visible [data-reveal="slide-left"],
+        [data-reveal="slide-left"].is-visible { animation-name: slideLeft; }
+        .is-visible [data-reveal="slide-right"],
+        [data-reveal="slide-right"].is-visible{ animation-name: slideRight; }
+        .is-visible [data-reveal="scale-in"],
+        [data-reveal="scale-in"].is-visible   { animation-name: scaleIn; }
+
+        /* ── Stagger delays ── */
+        [data-delay="100"] { animation-delay: 0.10s; }
+        [data-delay="200"] { animation-delay: 0.20s; }
+        [data-delay="300"] { animation-delay: 0.30s; }
+        [data-delay="400"] { animation-delay: 0.40s; }
+        [data-delay="500"] { animation-delay: 0.50s; }
+        [data-delay="600"] { animation-delay: 0.60s; }
+        [data-delay="700"] { animation-delay: 0.70s; }
+
         @media (prefers-reduced-motion: reduce) {
-          .expo-transition, .animate-pulse-slow {
+          [data-reveal], .expo-transition, .animate-pulse-slow {
             animation: none !important;
             transition: none !important;
             transform: none !important;
+            opacity: 1 !important;
           }
         }
       `}</style>
@@ -76,7 +180,8 @@ export default function Home() {
       {/* ============================================================
           HEADER / NAVIGATION
       ============================================================ */}
-      <header className="relative z-50 max-w-7xl mx-auto px-6 py-6 flex items-center justify-between">
+      <header className="relative z-50 max-w-7xl mx-auto px-6 py-6 flex items-center justify-between"
+        data-reveal="fade-in" style={{ animationDelay: '0.1s', animationDuration: '0.6s', animationFillMode: 'both', animationTimingFunction: 'ease', animationName: 'fadeIn' }}>
         <div className="flex items-center gap-2.5">
           <div className="w-9 h-9 bg-brand-primary rounded-xl flex items-center justify-center shadow-lg shadow-indigo-500/20">
             <FileText size={18} className="text-white" />
@@ -100,11 +205,13 @@ export default function Home() {
         <div className="absolute bottom-[-10%] left-[-10%] w-[550px] h-[550px] bg-indigo-800/10 rounded-full blur-[120px] pointer-events-none animate-pulse-slow" style={{ animationDelay: '4s' }} />
         <div className="absolute inset-0 brand-grid-pattern pointer-events-none" />
 
-        <div className="max-w-7xl mx-auto px-6 grid lg:grid-cols-12 gap-12 lg:gap-8 items-center relative z-10">
+        {/* Hero wrapper — becomes is-visible on mount */}
+        <div ref={heroRef} className="max-w-7xl mx-auto px-6 grid lg:grid-cols-12 gap-12 lg:gap-8 items-center relative z-10">
           
           {/* Left Column: Headline copy */}
           <div className="lg:col-span-7 flex flex-col items-start text-left">
-            <div className="inline-flex items-center gap-2 bg-brand-primary/10 border border-brand-primary/20 rounded-full px-3.5 py-1.5 mb-8">
+            <div data-reveal="fade-up" data-delay="100"
+              className="inline-flex items-center gap-2 bg-brand-primary/10 border border-brand-primary/20 rounded-full px-3.5 py-1.5 mb-8">
               <span className="relative flex h-2 w-2">
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-accent" />
@@ -112,15 +219,18 @@ export default function Home() {
               <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-widest">Ditenagai Llama 3.3 70B · 100% Gratis</span>
             </div>
 
-            <h1 className="font-heading text-4xl sm:text-6xl md:text-7xl font-extrabold leading-[1.08] tracking-[-0.03em] text-white mb-6 max-w-[18ch] text-balance">
+            <h1 data-reveal="fade-up" data-delay="200"
+              className="font-heading text-4xl sm:text-6xl md:text-7xl font-extrabold leading-[1.08] tracking-[-0.03em] text-white mb-6 max-w-[18ch] text-balance">
               Bikin CV profesional dibantu AI, anti-ribet.
             </h1>
 
-            <p className="text-base sm:text-lg text-slate-300 max-w-[55ch] mb-10 leading-relaxed text-balance">
+            <p data-reveal="fade-up" data-delay="300"
+              className="text-base sm:text-lg text-slate-300 max-w-[55ch] mb-10 leading-relaxed text-balance">
               Tulis pengalaman kerjamu seadanya. AI kami akan menyusun kalimatnya menjadi rapi, profesional, dan siap lolos seleksi ATS. Pilih template, unduh PDF instan tanpa buat akun.
             </p>
 
-            <div className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
+            <div data-reveal="fade-up" data-delay="400"
+              className="flex flex-col sm:flex-row items-stretch sm:items-center gap-4 w-full sm:w-auto">
               <Link
                 href="/cv-builder"
                 id="cta-hero-primary"
@@ -138,7 +248,7 @@ export default function Home() {
           </div>
 
           {/* Right Column: AI Live Simulation Mockup */}
-          <div className="lg:col-span-5 w-full flex justify-center lg:justify-end">
+          <div data-reveal="slide-right" data-delay="300" className="lg:col-span-5 w-full flex justify-center lg:justify-end">
             <div className="w-full max-w-[440px] bg-brand-card/90 border border-white/5 rounded-2xl p-6 shadow-2xl relative overflow-hidden backdrop-blur-md">
               {/* Decorative browser dots */}
               <div className="flex items-center gap-1.5 mb-5 border-b border-white/5 pb-4">
@@ -205,14 +315,14 @@ export default function Home() {
       </section>
 
       {/* ============================================================
-          HOW IT WORKS (Not boring, staggered step visuals)
+          HOW IT WORKS
       ============================================================ */}
-      <section id="cara-kerja" className="py-24 md:py-32 bg-white text-slate-900 relative overflow-hidden">
+      <section id="cara-kerja" ref={howRef} className="py-24 md:py-32 bg-white text-slate-900 relative overflow-hidden">
         <div className="absolute top-0 right-0 w-[450px] h-[450px] bg-indigo-50 rounded-full blur-[140px] opacity-70 pointer-events-none" />
         <div className="absolute bottom-0 left-0 w-[400px] h-[400px] bg-slate-100 rounded-full blur-[120px] opacity-60 pointer-events-none" />
 
         <div className="max-w-6xl mx-auto px-6 relative z-10">
-          <div className="mb-20 text-center max-w-xl mx-auto">
+          <div data-reveal="fade-up" className="mb-20 text-center max-w-xl mx-auto">
             <h2 className="font-heading text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-[-0.02em] mb-4">
               Hanya 3 Langkah Mudah
             </h2>
@@ -226,7 +336,7 @@ export default function Home() {
             
             {/* Step 1 */}
             <div className="grid md:grid-cols-12 gap-8 items-center">
-              <div className="md:col-span-5 order-2 md:order-1">
+              <div data-reveal="slide-left" data-delay="100" className="md:col-span-5">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm">01</span>
                   <h3 className="font-heading font-extrabold text-slate-900 text-2xl tracking-tight">Masukkan Data Pengalaman</h3>
@@ -239,7 +349,7 @@ export default function Home() {
                   <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Auto-save</span>
                 </div>
               </div>
-              <div className="md:col-span-7 order-1 md:order-2 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition">
+              <div data-reveal="slide-right" data-delay="200" className="md:col-span-7 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition">
                 <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm space-y-3 font-mono text-[11px] text-slate-400">
                   <div className="h-5 bg-slate-100 rounded w-1/3 mb-1" />
                   <div className="h-9 bg-slate-50 border border-slate-200 rounded w-full flex items-center px-3 text-slate-500">
@@ -255,7 +365,7 @@ export default function Home() {
 
             {/* Step 2 */}
             <div className="grid md:grid-cols-12 gap-8 items-center">
-              <div className="md:col-span-7 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition overflow-hidden">
+              <div data-reveal="slide-left" data-delay="100" className="md:col-span-7 order-2 md:order-1 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition overflow-hidden">
                 <div className="bg-white rounded-xl border border-slate-200 p-4 sm:p-5 shadow-sm space-y-3">
                   <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                     <span className="text-xs font-bold text-slate-800">Kalimat Mentah</span>
@@ -271,7 +381,7 @@ export default function Home() {
                   </p>
                 </div>
               </div>
-              <div className="md:col-span-5">
+              <div data-reveal="slide-right" data-delay="200" className="md:col-span-5 order-1 md:order-2">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm shrink-0">02</span>
                   <h3 className="font-heading font-extrabold text-slate-900 text-xl sm:text-2xl tracking-tight">Poles Instan dengan AI</h3>
@@ -288,7 +398,7 @@ export default function Home() {
 
             {/* Step 3 */}
             <div className="grid md:grid-cols-12 gap-8 items-center">
-              <div className="md:col-span-5 order-2 md:order-1">
+              <div data-reveal="slide-left" data-delay="100" className="md:col-span-5">
                 <div className="flex items-center gap-3 mb-4">
                   <span className="w-8 h-8 rounded-full bg-brand-primary/10 text-brand-primary font-bold flex items-center justify-center text-sm shrink-0">03</span>
                   <h3 className="font-heading font-extrabold text-slate-900 text-xl sm:text-2xl tracking-tight">Pilih Layout &amp; Unduh PDF</h3>
@@ -301,7 +411,7 @@ export default function Home() {
                   <span className="text-xs bg-slate-100 text-slate-600 px-3 py-1 rounded-full font-semibold">Tanpa Tanda Air</span>
                 </div>
               </div>
-              <div className="md:col-span-7 order-1 md:order-2 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition overflow-hidden">
+              <div data-reveal="slide-right" data-delay="200" className="md:col-span-7 bg-slate-50 border border-slate-200/80 rounded-2xl p-6 shadow-sm hover:shadow-md expo-transition overflow-hidden">
                 <div className="bg-white rounded-xl border border-slate-200 p-4 shadow-sm flex items-center gap-3 min-w-0">
                   <div className="w-10 h-10 rounded bg-red-100 text-red-600 flex items-center justify-center shrink-0">
                     <FileText size={20} />
@@ -324,14 +434,14 @@ export default function Home() {
       {/* ============================================================
           IMPORT SECTION (PDF Parser UI)
       ============================================================ */}
-      <section className="py-24 md:py-32 bg-brand-bg text-white relative overflow-hidden">
+      <section ref={importRef} className="py-24 md:py-32 bg-brand-bg text-white relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_top_right,rgba(99,102,241,0.08),transparent_50%)] pointer-events-none" />
         <div className="absolute inset-0 bg-[radial-gradient(ellipse_at_bottom_left,rgba(245,158,11,0.04),transparent_50%)] pointer-events-none" />
 
         <div className="max-w-6xl mx-auto px-6 grid md:grid-cols-12 gap-12 md:gap-16 items-center relative z-10">
           
           {/* Visual box parser */}
-          <div className="md:col-span-6 bg-slate-900/60 border border-white/5 rounded-2xl p-6 sm:p-8 hover:border-white/10 expo-transition">
+          <div data-reveal="slide-left" data-delay="100" className="md:col-span-6 bg-slate-900/60 border border-white/5 rounded-2xl p-6 sm:p-8 hover:border-white/10 expo-transition">
             <div className="flex items-center gap-4 mb-6 border-b border-white/5 pb-4">
               <div className="w-10 h-10 bg-indigo-500/10 border border-indigo-500/20 rounded-xl flex items-center justify-center">
                 <Upload size={18} className="text-indigo-400" />
@@ -349,7 +459,8 @@ export default function Home() {
                 { label: 'Pemetaan Riwayat Pendidikan', status: 'Selesai' },
                 { label: 'Pengelompokan Kemampuan & Skill', status: 'Selesai' },
               ].map((item, i) => (
-                <div key={i} className="flex items-center justify-between p-3 bg-white/2 border border-white/5 rounded-xl">
+                <div key={i} className="flex items-center justify-between p-3 bg-white/2 border border-white/5 rounded-xl"
+                  style={{ animationDelay: `${0.15 * i}s` }}>
                   <div className="flex items-center gap-3">
                     <CheckCircle2 size={15} className="text-emerald-400 flex-shrink-0" />
                     <span className="text-xs text-slate-300 font-medium">{item.label}</span>
@@ -366,7 +477,7 @@ export default function Home() {
           </div>
 
           {/* Text descriptions */}
-          <div className="md:col-span-6 flex flex-col items-start">
+          <div data-reveal="slide-right" data-delay="200" className="md:col-span-6 flex flex-col items-start">
             <h2 className="font-heading text-4xl md:text-5xl font-black mb-6 leading-tight text-white tracking-[-0.02em] text-balance">
               Sudah punya CV lama? Tarik otomatis di sini.
             </h2>
@@ -379,7 +490,8 @@ export default function Home() {
                 'Mengurai job deskripsi kerja dan pencapaian historis',
                 'Mengelompokkan data kompetensi keras dan lunak secara otomatis',
               ].map((item, i) => (
-                <li key={i} className="flex items-start gap-3 text-slate-300 text-sm">
+                <li key={i} className="flex items-start gap-3 text-slate-300 text-sm"
+                  data-reveal="fade-up" data-delay={`${(i + 2) * 100}`}>
                   <Zap size={16} className="text-brand-accent mt-0.5 flex-shrink-0" />
                   <span>{item}</span>
                 </li>
@@ -397,16 +509,15 @@ export default function Home() {
       </section>
 
       {/* ============================================================
-          BENEFITS / FEATURES (Asymmetrical layout, no flat grids)
+          BENEFITS / FEATURES
       ============================================================ */}
-      <section className="py-24 md:py-32 bg-white text-slate-900 relative overflow-hidden">
+      <section ref={featuresRef} className="py-24 md:py-32 bg-white text-slate-900 relative overflow-hidden">
         <div className="max-w-6xl mx-auto px-6 relative z-10">
           
-          {/* Asymmetric layout */}
           <div className="grid lg:grid-cols-12 gap-12 items-start">
             
-            {/* Left side: Sticky brief summary */}
-            <div className="lg:col-span-4 lg:sticky lg:top-8">
+            {/* Left side: sticky brief */}
+            <div data-reveal="slide-left" className="lg:col-span-4 lg:sticky lg:top-8">
               <h2 className="font-heading text-4xl md:text-5xl font-black text-slate-900 leading-tight tracking-[-0.02em] mb-4 text-balance">
                 Apa Yang Benar-benar Anda Dapatkan?
               </h2>
@@ -416,11 +527,11 @@ export default function Home() {
               <div className="w-16 h-1 bg-brand-primary rounded-full" />
             </div>
 
-            {/* Right side: Staggered sizes cards */}
+            {/* Right side: Staggered feature cards */}
             <div className="lg:col-span-8 space-y-6">
               
-              {/* Feature card 1 (Featured - larger) */}
-              <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-8 hover:border-brand-primary/30 expo-transition">
+              <div data-reveal="fade-up" data-delay="100"
+                className="bg-slate-50 border border-slate-200/80 rounded-2xl p-8 hover:border-brand-primary/30 expo-transition">
                 <div className="w-12 h-12 bg-indigo-50 rounded-xl flex items-center justify-center mb-5 text-brand-primary">
                   <FileText size={24} />
                 </div>
@@ -430,11 +541,10 @@ export default function Home() {
                 </p>
               </div>
 
-              {/* Smaller features split columns */}
               <div className="grid md:grid-cols-2 gap-6">
                 
-                {/* Feature card 2 */}
-                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:border-brand-primary/30 expo-transition">
+                <div data-reveal="fade-up" data-delay="200"
+                  className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:border-brand-primary/30 expo-transition">
                   <div className="w-10 h-10 bg-amber-50 rounded-xl flex items-center justify-center mb-4 text-brand-accent">
                     <Wand2 size={20} />
                   </div>
@@ -444,12 +554,12 @@ export default function Home() {
                   </p>
                 </div>
 
-                {/* Feature card 3 */}
-                <div className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:border-brand-primary/30 expo-transition">
+                <div data-reveal="fade-up" data-delay="300"
+                  className="bg-slate-50 border border-slate-200/80 rounded-2xl p-6 hover:border-brand-primary/30 expo-transition">
                   <div className="w-10 h-10 bg-emerald-50 rounded-xl flex items-center justify-center mb-4 text-emerald-600">
                     <Download size={20} />
                   </div>
-                  <h3 className="font-heading font-bold text-slate-900 text-lg mb-2.5 tracking-tight">Ekspor PDF Asli & Akurat</h3>
+                  <h3 className="font-heading font-bold text-slate-900 text-lg mb-2.5 tracking-tight">Ekspor PDF Asli &amp; Akurat</h3>
                   <p className="text-slate-500 text-xs leading-relaxed">
                     Unduh file PDF dengan rendering font berkualitas tinggi yang siap dicetak. Kami menjamin tidak ada coretan watermark atau elemen promosi apa pun pada CV Anda.
                   </p>
@@ -465,26 +575,29 @@ export default function Home() {
       </section>
 
       {/* ============================================================
-          FINAL CTA SECTION (Drenched background visual)
+          FINAL CTA SECTION
       ============================================================ */}
-      <section className="py-32 bg-brand-bg text-center relative overflow-hidden">
-        {/* Glowing background gradient elements */}
+      <section ref={ctaRef} className="py-32 bg-brand-bg text-center relative overflow-hidden">
         <div className="absolute inset-0 bg-[radial-gradient(circle_at_center,rgba(99,102,241,0.18),transparent_60%)] pointer-events-none" />
         <div className="absolute top-0 left-0 right-0 h-px bg-gradient-to-r from-transparent via-white/10 to-transparent" />
 
         <div className="max-w-3xl mx-auto px-6 relative z-10">
-          <h2 className="font-heading text-4xl sm:text-6xl font-extrabold text-white mb-6 tracking-[-0.03em] leading-[1.08] text-balance">
+          <h2 data-reveal="fade-up"
+            className="font-heading text-4xl sm:text-6xl font-extrabold text-white mb-6 tracking-[-0.03em] leading-[1.08] text-balance">
             Jangan biarkan karir impian Anda tertunda karena layout CV kaku.
           </h2>
-          <p className="text-slate-400 text-base sm:text-lg mb-10 max-w-md mx-auto leading-relaxed">
+          <p data-reveal="fade-up" data-delay="100"
+            className="text-slate-400 text-base sm:text-lg mb-10 max-w-md mx-auto leading-relaxed">
             Gratis tanpa batasan limit. Buat CV berkualitas dalam hitungan menit.
           </p>
-          <Link
-            href="/cv-builder"
-            className="expo-transition inline-flex items-center gap-2.5 px-10 py-4.5 bg-brand-accent hover:bg-brand-accent-hover text-slate-950 rounded-xl font-extrabold text-base shadow-lg shadow-amber-500/15"
-          >
-            <Sparkles size={18} /> Bikin CV Sekarang — Gratis
-          </Link>
+          <div data-reveal="scale-in" data-delay="200">
+            <Link
+              href="/cv-builder"
+              className="expo-transition inline-flex items-center gap-2.5 px-10 py-4 bg-brand-accent hover:bg-brand-accent-hover text-slate-950 rounded-xl font-extrabold text-base shadow-lg shadow-amber-500/15 hover:shadow-xl hover:shadow-amber-500/30 hover:scale-105"
+            >
+              <Sparkles size={18} /> Bikin CV Sekarang — Gratis
+            </Link>
+          </div>
         </div>
       </section>
 

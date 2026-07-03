@@ -107,16 +107,47 @@ The JSON must follow this exact schema:
   "skills": {
     "hard": "string",
     "soft": "string"
-  }
+  },
+  "customSections": [
+    {
+      "title": "string (section heading as it appears in the CV)",
+      "mode": "simple or experience",
+      "content": "string (for simple mode: all text content joined with newlines)",
+      "items": [
+        {
+          "title": "string (item heading/name)",
+          "subtitle": "string (secondary info e.g. issuer, institution, location)",
+          "startDate": "string",
+          "endDate": "string",
+          "isCurrent": false,
+          "description": "string (bullet points or details, joined with newlines)"
+        }
+      ]
+    }
+  ],
+  "sectionOrder": ["string"]
 }
 
 Rules:
 - Extract ALL information present in the CV
-- For descriptions/bullet points, join them with newline characters
+- For descriptions: if the original CV uses bullet points (•, -, *, numbers, or any list markers) for that section's content, format EACH bullet as a separate line starting with "• " (bullet + space). If the original is a paragraph with no bullets, keep it as a plain paragraph. Do NOT convert paragraphs into bullets or vice versa. Join multiple lines with newline characters (\n).
 - For skills: separate hard skills (technical) from soft skills (interpersonal) as comma-separated strings
 - For dates: keep as-is from the CV (e.g. "Jan 2022", "2020", "March 2021 - Present")
 - If a field is not found, use empty string "" or empty array []
 - Set isCurrent to true if the position says "Present", "Current", "Now", "Sekarang", etc.
+- IMPORTANT — Standard section mapping. The following section names (and common variants/translations) MUST be mapped to their corresponding standard field and NEVER placed in "customSections":
+  - "summary", "profile", "objective", "about", "about me", "professional summary", "ringkasan", "profil" → "personalInfo.summary"
+  - "education", "academic", "educational background", "pendidikan", "riwayat pendidikan" → "educations"
+  - "experience", "work experience", "employment", "career", "work history", "professional experience", "pengalaman", "pengalaman kerja" → "experiences"
+  - "projects", "project", "portfolio", "proyek", "hasil karya" → "projects"
+  - "skills", "technical skills", "competencies", "keahlian", "kemampuan" → "skills"
+  - "honors", "awards", "honors & awards", "honors and awards", "achievements", "accomplishments", "penghargaan", "prestasi" → "achievements"
+- For "customSections": include ONLY sections that are NOT covered by the standard mapping above (e.g. Certifications, Languages, Volunteer, Publications, References, Interests, Courses, Extracurricular, Organizations, etc.)
+  - Use mode "experience" if the section contains entries with a title, date range, and/or description (e.g. certifications with issue dates, volunteer work, organizations)
+  - Use mode "simple" for plain lists or short paragraphs (e.g. languages, interests, references)
+  - For "simple" mode: put all text in "content" and leave "items" as []
+  - For "experience" mode: put each entry as an item in "items" and leave "content" as ""
+- For "sectionOrder": list the section keys in the EXACT ORDER they appear in the CV from top to bottom. Use these exact key names: "summary", "education", "experience", "projects", "skills", "achievements". For custom sections, use "custom:<title>" where <title> is the exact section title string (e.g. "custom:Certifications", "custom:Languages"). Only include sections that are present in the CV.
 - Return ONLY the JSON object, no markdown, no explanation, no code fences`;
 
   try {

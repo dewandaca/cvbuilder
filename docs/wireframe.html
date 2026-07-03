@@ -1,0 +1,1106 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NextCV — Lo-Fi Wireframe · Landing Page</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bricolage+Grotesque:wght@700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Figma wireframe palette */
+      --bg:          #F0F0F0;
+      --canvas:      #FAFAFA;
+
+      /* Grayscale levels */
+      --g0:  #FFFFFF;
+      --g1:  #F5F5F5;
+      --g2:  #EBEBEB;
+      --g3:  #DEDEDE;
+      --g4:  #CFCFCF;
+      --g5:  #B8B8B8;
+      --g6:  #9A9A9A;
+      --g7:  #6A6A6A;
+      --g8:  #3A3A3A;
+      --g9:  #2A2A2A;
+      --g10: #1A1A1A;
+
+      /* Dark surface levels */
+      --d1:  #242424;
+      --d2:  #2E2E2E;
+      --d3:  #363636;
+      --d4:  #424242;
+      --d5:  #525252;
+
+      /* Annotation */
+      --ann: #6366F1;
+
+      --radius-sm: 4px;
+      --radius:    8px;
+      --radius-lg: 12px;
+      --radius-xl: 16px;
+      --font: 'Inter', system-ui, sans-serif;
+      --font-heading: 'Bricolage Grotesque', system-ui, sans-serif;
+    }
+
+    html {
+      font-family: var(--font);
+      background: var(--bg);
+      color: var(--g10);
+      font-size: 14px;
+    }
+
+    /* ─── Canvas wrapper ─────────────────────────────────────── */
+    .canvas {
+      max-width: 1280px;
+      margin: 40px auto;
+      background: var(--canvas);
+      border: 1px solid var(--g4);
+      border-radius: 16px;
+      overflow: hidden;
+      box-shadow: 0 4px 40px rgba(0,0,0,0.08);
+    }
+
+    /* ─── Wireframe toolbar (mimics Figma) ───────────────────── */
+    .wf-toolbar {
+      background: var(--g10);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--d4);
+    }
+    .wf-toolbar-left { display: flex; align-items: center; gap: 12px; }
+    .wf-dots { display: flex; gap: 6px; }
+    .wf-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .wf-dot.red    { background: #FF5F57; }
+    .wf-dot.yellow { background: #FFBD2E; }
+    .wf-dot.green  { background: #27C93F; }
+    .wf-title {
+      font-size: 11px; font-weight: 600; color: var(--g5);
+      letter-spacing: 0.04em;
+    }
+    .wf-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--g6);
+      background: var(--d3); border: 1px solid var(--d5);
+      padding: 3px 10px; border-radius: 20px;
+    }
+    .wf-zoom {
+      font-size: 10px; font-weight: 600; color: var(--g6);
+    }
+
+    /* ─── Section wrapper ────────────────────────────────────── */
+    .wf-section {
+      position: relative;
+      border-bottom: 1.5px dashed var(--g4);
+    }
+    .wf-section:last-child { border-bottom: none; }
+
+    /* ─── Heading text styles ─────────────────────────────────── */
+    .wf-h1 {
+      font-family: var(--font-heading);
+      font-size: 36px;
+      font-weight: 900;
+      line-height: 1.1;
+      letter-spacing: -0.025em;
+      color: var(--g5);
+    }
+    .wf-h1.dark { color: var(--d5); }
+    .wf-h2 {
+      font-family: var(--font-heading);
+      font-size: 26px;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.02em;
+      color: var(--g7);
+    }
+    .wf-h2.dark { color: var(--d5); }
+    .wf-h2.light-text { color: var(--g5); }
+    .wf-h3 {
+      font-family: var(--font-heading);
+      font-size: 16px;
+      font-weight: 800;
+      letter-spacing: -0.01em;
+      color: var(--g7);
+    }
+    .wf-h3.dark { color: var(--d5); }
+    .wf-label-text {
+      font-size: 10px;
+      font-weight: 700;
+      letter-spacing: 0.1em;
+      text-transform: uppercase;
+      color: var(--g6);
+    }
+    .wf-label-text.dark { color: var(--d5); }
+    /* Nav & logo text */
+    .wf-logo-text {
+      font-family: var(--font-heading);
+      font-size: 15px; font-weight: 800;
+      color: var(--d5); letter-spacing: -0.01em;
+    }
+    .wf-btn-text {
+      font-size: 11px; font-weight: 700; color: var(--d5);
+    }
+    .wf-btn-text.light { color: var(--g6); }
+
+    /* Section label — top-left annotation chip */
+    .sec-label {
+      position: absolute;
+      top: 10px; left: 12px;
+      font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--ann);
+      background: rgba(99,102,241,0.08);
+      border: 1px solid rgba(99,102,241,0.25);
+      padding: 2px 8px; border-radius: 20px;
+      z-index: 10;
+      pointer-events: none;
+    }
+    .sec-label.light {
+      color: var(--g7); background: var(--g2); border-color: var(--g4);
+    }
+
+    /* Inner container */
+    .inner {
+      max-width: 1100px;
+      margin: 0 auto;
+      padding: 0 40px;
+    }
+
+    /* ─── PLACEHOLDER PRIMITIVES ─────────────────────────────── */
+    /* Text lines */
+    .ph {
+      display: block;
+      background: var(--g4);
+      border-radius: 3px;
+      width: 100%;
+    }
+    .ph.dark { background: var(--d4); }
+    .ph.darker { background: var(--d3); }
+
+    /* Heights */
+    .ph-xl   { height: 44px; border-radius: 6px; }
+    .ph-lg   { height: 32px; border-radius: 5px; }
+    .ph-md   { height: 20px; border-radius: 4px; }
+    .ph-sm   { height: 13px; }
+    .ph-xs   { height: 10px; }
+    .ph-xxs  { height: 8px; }
+
+    /* Widths */
+    .w-20  { width: 20%; }
+    .w-25  { width: 25%; }
+    .w-30  { width: 30%; }
+    .w-35  { width: 35%; }
+    .w-40  { width: 40%; }
+    .w-45  { width: 45%; }
+    .w-50  { width: 50%; }
+    .w-55  { width: 55%; }
+    .w-60  { width: 60%; }
+    .w-65  { width: 65%; }
+    .w-70  { width: 70%; }
+    .w-75  { width: 75%; }
+    .w-80  { width: 80%; }
+    .w-85  { width: 85%; }
+    .w-90  { width: 90%; }
+    .w-100 { width: 100%; }
+
+    /* Gap stacks */
+    .stack { display: flex; flex-direction: column; }
+    .gap-4  { gap: 4px; }
+    .gap-6  { gap: 6px; }
+    .gap-8  { gap: 8px; }
+    .gap-10 { gap: 10px; }
+    .gap-12 { gap: 12px; }
+    .gap-16 { gap: 16px; }
+
+    /* Flex row */
+    .row { display: flex; align-items: flex-start; gap: 40px; }
+    .row.center { align-items: center; }
+    .col { flex: 1; }
+    .col-5 { flex: 0 0 45%; }
+    .col-6 { flex: 0 0 50%; }
+    .col-7 { flex: 0 0 58%; }
+
+    /* Button placeholder */
+    .btn {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 11px 22px; border-radius: var(--radius);
+      border: 1.5px solid var(--g5); background: var(--g3);
+      flex-shrink: 0;
+    }
+    .btn.primary { background: var(--g5); border-color: var(--g7); }
+    .btn.dark    { background: var(--d4); border-color: var(--d5); }
+    .btn.dark-primary { background: var(--d3); border-color: var(--d5); }
+    .btn .btn-icon { width: 14px; height: 14px; border-radius: 3px; background: var(--g7); flex-shrink: 0; }
+    .btn .btn-icon.light { background: var(--g3); }
+    .btn .btn-lbl { height: 12px; border-radius: 2px; background: var(--g8); }
+    .btn .btn-lbl.light { background: var(--g3); }
+    .btn.sm { padding: 8px 16px; }
+
+    /* Badge/pill */
+    .badge {
+      display: inline-flex; align-items: center; gap: 6px;
+      padding: 4px 12px; border-radius: 20px;
+      background: var(--g2); border: 1px solid var(--g4);
+    }
+    .badge.dark {
+      background: var(--d3); border-color: var(--d5);
+    }
+    .badge .b-dot { width: 7px; height: 7px; border-radius: 50%; background: var(--g5); flex-shrink: 0; }
+    .badge .b-dot.dark { background: var(--d5); }
+    .badge .b-txt { height: 9px; border-radius: 2px; background: var(--g5); }
+    .badge .b-txt.dark { background: var(--d5); }
+
+    /* Tag/chip */
+    .tag {
+      display: inline-flex; padding: 4px 12px; border-radius: 20px;
+      height: 10px; background: var(--g3); border: 1px solid var(--g4);
+    }
+    .tag.dark { background: var(--d3); border-color: var(--d5); }
+
+    /* Card */
+    .card {
+      background: var(--g0); border: 1px solid var(--g3);
+      border-radius: var(--radius-lg); padding: 20px;
+    }
+    .card.light { background: var(--g1); border-color: var(--g3); }
+    .card.dark  { background: var(--d2); border: 1px solid var(--d4); border-radius: var(--radius-lg); padding: 20px; }
+    .card.darker { background: var(--d1); border-color: var(--d3); }
+
+    /* Icon box */
+    .icon-box {
+      flex-shrink: 0;
+      background: var(--g3); border-radius: var(--radius-sm);
+    }
+    .icon-box.dark { background: var(--d4); border-radius: var(--radius); }
+    .icon-box.circle { border-radius: 50%; }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 1 — HEADER / NAVBAR
+    ══════════════════════════════════════════════════════════ */
+    .sec-navbar {
+      background: var(--d1);
+      padding: 0;
+    }
+    .sec-navbar .inner {
+      display: flex; align-items: center; justify-content: space-between;
+      height: 60px;
+    }
+    .nav-brand { display: flex; align-items: center; gap: 10px; }
+    .nav-brand .brand-icon {
+      width: 34px; height: 34px; background: var(--d4);
+      border: 1px solid var(--d5); border-radius: 10px; flex-shrink: 0;
+    }
+    .nav-brand .brand-lbl { height: 13px; width: 60px; background: var(--d5); border-radius: 3px; }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 2 — HERO
+    ══════════════════════════════════════════════════════════ */
+    .sec-hero {
+      background: var(--d1);
+      padding: 72px 0 80px;
+    }
+    .sec-hero .row { align-items: center; }
+
+    /* AI sim card */
+    .sim-card {
+      flex: 0 0 400px;
+      background: var(--d2); border: 1px solid var(--d4);
+      border-radius: var(--radius-xl); overflow: hidden;
+    }
+    .sim-titlebar {
+      background: var(--d3); padding: 10px 14px;
+      display: flex; align-items: center; gap: 6px;
+      border-bottom: 1px solid var(--d4);
+    }
+    .sim-dot { width: 9px; height: 9px; border-radius: 50%; }
+    .sim-dot.r { background: #6A3333; }
+    .sim-dot.y { background: #6A5733; }
+    .sim-dot.g { background: #336A3E; }
+    .sim-url { height: 8px; background: var(--d5); border-radius: 2px; width: 120px; margin-left: 8px; }
+    .sim-body { padding: 16px; display: flex; flex-direction: column; gap: 12px; }
+
+    .sim-block {
+      background: var(--d3); border: 1px solid var(--d4);
+      border-radius: var(--radius); padding: 12px;
+    }
+    .sim-block-head {
+      display: flex; align-items: center; justify-content: space-between;
+      margin-bottom: 8px;
+    }
+    .sim-block-lbl { height: 8px; background: var(--d5); border-radius: 2px; width: 90px; }
+    .sim-block-tag {
+      height: 9px; background: var(--d4); border-radius: 20px; width: 52px;
+      padding: 0 8px;
+    }
+    .sim-line { height: 8px; background: var(--d5); border-radius: 2px; margin-bottom: 5px; }
+    .sim-line:last-child { margin-bottom: 0; }
+
+    .sim-action {
+      display: flex; justify-content: center; align-items: center;
+    }
+    .sim-action-pill {
+      height: 9px; background: var(--d4); border-radius: 20px; width: 100px;
+    }
+
+    .sim-result {
+      background: var(--d3); border: 1px solid var(--d4);
+      border-radius: var(--radius); padding: 12px;
+    }
+    .sim-result-head { display: flex; justify-content: space-between; margin-bottom: 8px; }
+    .sim-result-lbl { height: 8px; background: var(--d5); border-radius: 2px; width: 110px; }
+    .sim-result-status { height: 8px; background: var(--d4); border-radius: 20px; width: 40px; }
+    .sim-result-li {
+      display: flex; align-items: flex-start; gap: 6px; margin-bottom: 6px;
+    }
+    .sim-result-li .bullet { width: 5px; height: 5px; border-radius: 50%; background: var(--d5); margin-top: 2px; flex-shrink: 0; }
+    .sim-result-li .li-txt { height: 8px; background: var(--d5); border-radius: 2px; flex: 1; }
+    .sim-result-li:last-child { margin-bottom: 0; }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 3 — HOW IT WORKS
+    ══════════════════════════════════════════════════════════ */
+    .sec-how {
+      background: var(--g0);
+      padding: 80px 0;
+    }
+    .sec-header { text-align: center; margin-bottom: 64px; }
+    .sec-header .ph-lg { max-width: 280px; margin: 0 auto 12px; }
+    .sec-header .ph-sm { max-width: 340px; margin: 0 auto 5px; }
+
+    .step-row {
+      display: grid; grid-template-columns: 1fr 1.4fr;
+      gap: 40px; align-items: center; margin-bottom: 56px;
+    }
+    .step-row.reverse {
+      grid-template-columns: 1.4fr 1fr;
+    }
+    .step-row:last-child { margin-bottom: 0; }
+
+    .step-meta { padding-top: 4px; }
+    .step-num-row { display: flex; align-items: center; gap: 10px; margin-bottom: 12px; }
+    .step-num {
+      width: 30px; height: 30px; border-radius: 50%;
+      background: var(--g3); border: 1.5px solid var(--g5);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 11px; font-weight: 700; color: var(--g7); flex-shrink: 0;
+    }
+    .step-body { display: flex; flex-direction: column; gap: 7px; margin-bottom: 14px; }
+    .step-tags { display: flex; gap: 8px; flex-wrap: wrap; }
+
+    /* Form card (Step 1) */
+    .form-card {
+      background: var(--g1); border: 1px solid var(--g3);
+      border-radius: var(--radius-xl); padding: 24px;
+    }
+    .form-inner {
+      background: var(--g0); border: 1px solid var(--g3);
+      border-radius: var(--radius-lg); padding: 16px;
+      display: flex; flex-direction: column; gap: 12px;
+    }
+    .form-field { display: flex; flex-direction: column; gap: 5px; }
+    .form-lbl { height: 8px; background: var(--g3); border-radius: 2px; width: 60px; }
+    .form-input {
+      height: 34px; background: var(--g1); border: 1px solid var(--g3);
+      border-radius: var(--radius-sm); padding: 0 10px;
+      display: flex; align-items: center;
+    }
+    .form-input .f-val { height: 10px; background: var(--g4); border-radius: 2px; width: 140px; }
+    .form-textarea {
+      height: 56px; background: var(--g1); border: 1px solid var(--g3);
+      border-radius: var(--radius-sm); padding: 8px 10px;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .form-textarea .f-line { height: 8px; background: var(--g4); border-radius: 2px; }
+
+    /* AI card (Step 2) */
+    .ai-card {
+      background: var(--g1); border: 1px solid var(--g3);
+      border-radius: var(--radius-xl); padding: 24px;
+    }
+    .ai-inner {
+      background: var(--g0); border: 1px solid var(--g3);
+      border-radius: var(--radius-lg); padding: 16px;
+      display: flex; flex-direction: column; gap: 10px;
+    }
+    .ai-top { display: flex; align-items: center; justify-content: space-between; padding-bottom: 10px; border-bottom: 1px solid var(--g3); }
+    .ai-top-lbl { height: 10px; background: var(--g5); border-radius: 2px; width: 80px; }
+    .ai-top-btn { height: 9px; background: var(--g4); border-radius: 20px; width: 60px; }
+
+    .ai-input-block {
+      background: var(--g1); border: 1px solid var(--g3);
+      border-radius: var(--radius-sm); padding: 8px; font-style: italic;
+      display: flex; flex-direction: column; gap: 5px;
+    }
+    .ai-input-block .aib-line { height: 8px; background: var(--g4); border-radius: 2px; }
+
+    .ai-result-block { display: flex; align-items: flex-start; gap: 6px; }
+    .ai-result-block .check { width: 10px; height: 10px; border-radius: 50%; background: var(--g5); flex-shrink: 0; margin-top: 1px; }
+    .ai-result-block .res-txt { height: 8px; background: var(--g5); border-radius: 2px; flex: 1; }
+
+    /* Download card (Step 3) */
+    .dl-card {
+      background: var(--g1); border: 1px solid var(--g3);
+      border-radius: var(--radius-xl); padding: 24px;
+    }
+    .dl-inner {
+      background: var(--g0); border: 1px solid var(--g3);
+      border-radius: var(--radius-lg); padding: 16px;
+      display: flex; align-items: center; gap: 14px;
+    }
+    .dl-icon { width: 38px; height: 44px; background: var(--g3); border-radius: var(--radius-sm); flex-shrink: 0; }
+    .dl-info { flex: 1; display: flex; flex-direction: column; gap: 6px; }
+    .dl-name { height: 11px; background: var(--g5); border-radius: 2px; width: 130px; }
+    .dl-meta { height: 9px; background: var(--g3); border-radius: 2px; width: 70px; }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 4 — PDF IMPORT
+    ══════════════════════════════════════════════════════════ */
+    .sec-import {
+      background: var(--d1);
+      padding: 80px 0;
+    }
+
+    .import-panel {
+      flex: 0 0 440px;
+      background: var(--d2); border: 1px solid var(--d4);
+      border-radius: var(--radius-xl); padding: 24px;
+    }
+    .ip-top {
+      display: flex; align-items: flex-start; gap: 14px;
+      padding-bottom: 16px; border-bottom: 1px solid var(--d4);
+      margin-bottom: 16px;
+    }
+    .ip-icon { width: 40px; height: 40px; background: var(--d4); border: 1px solid var(--d5); border-radius: var(--radius); flex-shrink: 0; }
+    .ip-title { height: 12px; background: var(--d5); border-radius: 2px; width: 110px; margin-bottom: 7px; }
+    .ip-sub   { height: 9px; background: var(--d4); border-radius: 2px; width: 150px; }
+
+    .ip-item {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 10px 12px; border-radius: var(--radius);
+      border: 1px solid var(--d4); background: var(--d3); margin-bottom: 8px;
+    }
+    .ip-item:last-of-type { margin-bottom: 0; }
+    .ip-item-l { display: flex; align-items: center; gap: 8px; }
+    .ip-item-icon { width: 14px; height: 14px; border-radius: 50%; background: var(--d5); flex-shrink: 0; }
+    .ip-item-txt  { height: 10px; background: var(--d5); border-radius: 2px; }
+    .ip-item-badge { height: 9px; background: var(--d4); border-radius: 20px; width: 44px; }
+
+    .ip-footer-block {
+      margin-top: 12px; padding: 10px 14px; border-radius: var(--radius);
+      border: 1px solid var(--d5); background: rgba(99,102,241,0.07);
+      display: flex; align-items: center; gap: 8px;
+    }
+    .ip-footer-icon { width: 14px; height: 14px; background: var(--d5); border-radius: 3px; flex-shrink: 0; }
+    .ip-footer-txt  { height: 9px; background: var(--d5); border-radius: 2px; flex: 1; }
+
+    /* Import text side */
+    .import-text { flex: 1; }
+    .import-feature { display: flex; align-items: center; gap: 10px; margin-bottom: 10px; }
+    .import-feat-icon { width: 16px; height: 16px; background: var(--d5); border-radius: 3px; flex-shrink: 0; }
+    .import-feat-txt  { height: 10px; background: var(--d5); border-radius: 2px; flex: 1; }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 5 — BENEFITS / FEATURES
+    ══════════════════════════════════════════════════════════ */
+    .sec-benefits {
+      background: var(--g0);
+      padding: 80px 0;
+    }
+    .feat-grid { display: grid; grid-template-columns: 1fr 1.8fr; gap: 48px; align-items: start; }
+    .feat-sticky { /* left column */ }
+    .feat-divider { width: 56px; height: 5px; background: var(--g4); border-radius: 3px; margin-top: 16px; }
+    .feat-cards { display: flex; flex-direction: column; gap: 20px; }
+
+    .feat-card {
+      background: var(--g1); border: 1px solid var(--g3);
+      border-radius: var(--radius-xl); padding: 28px;
+    }
+    .feat-card .fc-icon-box { width: 44px; height: 44px; background: var(--g3); border-radius: var(--radius); margin-bottom: 16px; }
+    .feat-card .fc-title { height: 16px; background: var(--g5); border-radius: 3px; width: 70%; margin-bottom: 10px; }
+    .feat-card .fc-body { display: flex; flex-direction: column; gap: 6px; }
+
+    .feat-2col { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 6 — CTA
+    ══════════════════════════════════════════════════════════ */
+    .sec-cta {
+      background: var(--d1);
+      padding: 100px 0;
+      text-align: center;
+    }
+    .cta-heading { display: flex; flex-direction: column; gap: 10px; margin-bottom: 20px; }
+    .cta-heading .ph { margin: 0 auto; background: var(--d4); }
+    .cta-sub { display: flex; flex-direction: column; gap: 6px; margin-bottom: 40px; }
+    .cta-sub .ph { margin: 0 auto; background: var(--d3); }
+    .cta-btn-wrap { display: flex; justify-content: center; }
+
+    /* ══════════════════════════════════════════════════════════
+       SECTION 7 — FOOTER
+    ══════════════════════════════════════════════════════════ */
+    .sec-footer {
+      background: var(--d1);
+      border-top: 1px solid var(--d3);
+      padding: 24px 0;
+    }
+    .sec-footer .inner {
+      display: flex; align-items: center; justify-content: space-between;
+    }
+    .foot-brand { display: flex; align-items: center; gap: 8px; }
+    .foot-icon  { width: 22px; height: 22px; background: var(--d4); border-radius: 5px; border: 1px solid var(--d5); }
+    .foot-lbl   { height: 10px; background: var(--d5); border-radius: 2px; width: 50px; }
+    .foot-copy  { height: 9px;  background: var(--d3); border-radius: 2px; width: 190px; }
+
+    /* ─── Legend / Annotations ───────────────────────────────── */
+    .legend {
+      background: var(--g1); border-top: 2px dashed var(--g4);
+      padding: 32px 40px;
+    }
+    .legend-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--g6); margin-bottom: 20px;
+    }
+    .legend-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .legend-item {
+      background: var(--g0); border: 1px solid var(--g3);
+      border-radius: var(--radius); padding: 10px 14px;
+    }
+    .legend-item .l-lbl {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--ann); margin-bottom: 4px;
+    }
+    .legend-item .l-val { font-size: 11px; color: var(--g7); line-height: 1.5; }
+
+    /* Measurement annotations */
+    .ann-line {
+      display: flex; align-items: center; gap: 4px;
+      margin: 0 40px; padding: 6px 0;
+      border-top: 1px dashed var(--g4);
+      font-size: 9px; color: var(--ann); font-weight: 600;
+      letter-spacing: 0.04em;
+    }
+
+    /* ─── Utility ────────────────────────────────────────────── */
+    .mb-4  { margin-bottom: 4px; }
+    .mb-6  { margin-bottom: 6px; }
+    .mb-8  { margin-bottom: 8px; }
+    .mb-10 { margin-bottom: 10px; }
+    .mb-12 { margin-bottom: 12px; }
+    .mb-16 { margin-bottom: 16px; }
+    .mb-20 { margin-bottom: 20px; }
+    .mb-24 { margin-bottom: 24px; }
+    .mb-28 { margin-bottom: 28px; }
+    .mt-8  { margin-top: 8px; }
+    .mt-12 { margin-top: 12px; }
+    .mt-16 { margin-top: 16px; }
+    .mt-20 { margin-top: 20px; }
+
+    .flex   { display: flex; }
+    .items-center { align-items: center; }
+    .justify-center { justify-content: center; }
+    .gap-8r  { gap: 8px; }
+    .gap-12r { gap: 12px; }
+    .gap-16r { gap: 16px; }
+    .shrink-0 { flex-shrink: 0; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════ CANVAS ════════════ -->
+<div class="canvas">
+
+  <!-- ── Wireframe toolbar ── -->
+  <div class="wf-toolbar">
+    <div class="wf-toolbar-left">
+      <div class="wf-dots">
+        <div class="wf-dot red"></div>
+        <div class="wf-dot yellow"></div>
+        <div class="wf-dot green"></div>
+      </div>
+      <span class="wf-title">NextCV — Landing Page · Lo-Fi Wireframe</span>
+    </div>
+    <div class="wf-badge">Lo-Fi · Grayscale</div>
+    <span class="wf-zoom">100%</span>
+  </div>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 1 — NAVBAR / HEADER
+  ══════════════════════════════════════════════════════════ -->
+  <section class="wf-section sec-navbar">
+    <span class="sec-label">01 · Header</span>
+    <div class="inner">
+      <div class="nav-brand">
+        <div class="brand-icon"></div>
+        <span class="wf-logo-text">NextCV</span>
+      </div>
+      <a href="wireframe_template.html" style="text-decoration: none;">
+        <div class="btn dark" style="padding:8px 18px; gap:6px; cursor: pointer;">
+          <span class="wf-btn-text light">Mulai Bikin</span>
+          <div class="btn-icon light" style="width:10px;height:10px;border-radius:50%;"></div>
+        </div>
+      </a>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 2 — HERO
+  ══════════════════════════════════════════════════════════ -->
+  <section class="wf-section sec-hero">
+    <span class="sec-label">02 · Hero</span>
+    <div class="inner">
+      <div class="row center">
+
+        <!-- Left: copy column -->
+        <div class="col" style="padding-top:4px;">
+
+          <!-- Animated badge (pill) -->
+          <div class="badge dark mb-20" style="display:inline-flex;">
+            <div class="b-dot dark"></div>
+            <span class="wf-label-text dark" style="white-space:nowrap;">Ditenagai Llama 3.3 70B · 100% Gratis</span>
+          </div>
+
+          <!-- H1 headline -->
+          <div class="mb-20">
+            <h1 class="wf-h1 dark">Bikin CV profesional<br>dibantu AI, anti-ribet.</h1>
+          </div>
+
+          <!-- Subtext paragraph (3 lines) -->
+          <div class="stack gap-8 mb-28" style="max-width:380px;">
+            <div class="ph ph-sm dark w-100"></div>
+            <div class="ph ph-sm dark w-90"></div>
+            <div class="ph ph-sm dark w-80"></div>
+          </div>
+
+          <!-- CTA buttons row -->
+          <div class="flex items-center gap-16r">
+            <a href="wireframe_template.html" style="text-decoration: none;">
+              <div class="btn dark-primary" style="cursor: pointer;">
+                <div class="btn-icon light"></div>
+                <div class="btn-lbl light" style="width:130px;"></div>
+              </div>
+            </a>
+            <div class="flex items-center gap-8r">
+              <div class="ph ph-xs dark w-100" style="width:110px;"></div>
+              <div class="icon-box dark" style="width:10px;height:10px;border-radius:50%;"></div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Right: AI simulation card -->
+        <div class="sim-card">
+          <!-- Browser titlebar -->
+          <div class="sim-titlebar">
+            <div class="sim-dot r"></div>
+            <div class="sim-dot y"></div>
+            <div class="sim-dot g"></div>
+            <div class="sim-url"></div>
+          </div>
+          <!-- Body -->
+          <div class="sim-body">
+            <!-- Block 1: User input -->
+            <div class="sim-block">
+              <div class="sim-block-head">
+                <div class="sim-block-lbl"></div>
+                <div class="sim-block-tag"></div>
+              </div>
+              <div class="sim-line w-100"></div>
+              <div class="sim-line w-85"></div>
+            </div>
+            <!-- Action pill: AI process -->
+            <div class="sim-action">
+              <div class="sim-action-pill"></div>
+            </div>
+            <!-- Block 2: Polished output -->
+            <div class="sim-result">
+              <div class="sim-result-head">
+                <div class="sim-result-lbl"></div>
+                <div class="sim-result-status"></div>
+              </div>
+              <div class="sim-result-li">
+                <div class="bullet"></div>
+                <div class="li-txt w-100"></div>
+              </div>
+              <div class="sim-result-li">
+                <div class="bullet"></div>
+                <div class="li-txt w-80"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 3 — HOW IT WORKS
+  ══════════════════════════════════════════════════════════ -->
+  <section class="wf-section sec-how">
+    <span class="sec-label light">03 · How It Works</span>
+    <div class="inner">
+
+      <!-- Section header (centered) -->
+      <div class="sec-header">
+        <h2 class="wf-h2" style="margin-bottom:12px;">Hanya 3 Langkah Mudah</h2>
+        <div class="ph ph-sm w-55" style="max-width:380px;margin:0 auto 6px;"></div>
+        <div class="ph ph-sm w-40" style="max-width:280px;margin:0 auto;"></div>
+      </div>
+
+      <!-- Step 01: Fill Form -->
+      <div class="step-row mb-24">
+        <!-- Meta (left) -->
+        <div class="step-meta">
+          <div class="step-num-row">
+            <div class="step-num">01</div>
+            <h3 class="wf-h3">Masukkan Data Pengalaman</h3>
+          </div>
+          <div class="step-body">
+            <div class="ph ph-sm w-100"></div>
+            <div class="ph ph-sm w-90"></div>
+            <div class="ph ph-sm w-80"></div>
+            <div class="ph ph-sm w-65"></div>
+          </div>
+          <div class="step-tags">
+            <div class="tag"></div>
+            <div class="tag" style="width:55px;"></div>
+          </div>
+        </div>
+        <!-- Visual (right) -->
+        <div class="form-card">
+          <div class="form-inner">
+            <div class="form-field">
+              <div class="form-lbl"></div>
+              <div class="form-input"><div class="f-val"></div></div>
+            </div>
+            <div class="form-field">
+              <div class="form-lbl" style="width:45px;"></div>
+              <div class="form-textarea">
+                <div class="f-line w-90"></div>
+                <div class="f-line w-70"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 02: AI Polish -->
+      <div class="step-row mb-24 reverse">
+        <!-- Visual (left, due to reverse) -->
+        <div class="ai-card">
+          <div class="ai-inner">
+            <div class="ai-top">
+              <div class="ai-top-lbl"></div>
+              <div class="ai-top-btn"></div>
+            </div>
+            <div class="ai-input-block">
+              <div class="aib-line w-100"></div>
+              <div class="aib-line w-80"></div>
+            </div>
+            <div class="ai-result-block">
+              <div class="check"></div>
+              <div class="res-txt w-100"></div>
+            </div>
+          </div>
+        </div>
+        <!-- Meta (right) -->
+        <div class="step-meta">
+          <div class="step-num-row">
+            <div class="step-num">02</div>
+            <h3 class="wf-h3">Poles Instan dengan AI</h3>
+          </div>
+          <div class="step-body">
+            <div class="ph ph-sm w-100"></div>
+            <div class="ph ph-sm w-90"></div>
+            <div class="ph ph-sm w-80"></div>
+            <div class="ph ph-sm w-70"></div>
+          </div>
+          <div class="step-tags">
+            <div class="tag" style="width:90px;"></div>
+            <div class="tag" style="width:70px;"></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Step 03: Download PDF -->
+      <div class="step-row">
+        <!-- Meta (left) -->
+        <div class="step-meta">
+          <div class="step-num-row">
+            <div class="step-num">03</div>
+            <h3 class="wf-h3">Pilih Layout &amp; Unduh PDF</h3>
+          </div>
+          <div class="step-body">
+            <div class="ph ph-sm w-100"></div>
+            <div class="ph ph-sm w-90"></div>
+            <div class="ph ph-sm w-85"></div>
+            <div class="ph ph-sm w-65"></div>
+          </div>
+          <div class="step-tags">
+            <div class="tag" style="width:75px;"></div>
+            <div class="tag" style="width:85px;"></div>
+          </div>
+        </div>
+        <!-- Visual (right) -->
+        <div class="dl-card">
+          <div class="dl-inner">
+            <div class="dl-icon"></div>
+            <div class="dl-info">
+              <div class="dl-name"></div>
+              <div class="dl-meta"></div>
+            </div>
+            <div class="btn primary sm">
+              <div class="btn-icon" style="width:12px;height:12px;"></div>
+              <div class="btn-lbl" style="width:60px;"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 4 — PDF IMPORT
+  ══════════════════════════════════════════════════════════ -->
+  <section class="wf-section sec-import">
+    <span class="sec-label">04 · PDF Import</span>
+    <div class="inner">
+      <div class="row center">
+
+        <!-- Left: Import panel -->
+        <div class="import-panel">
+          <div class="ip-top">
+            <div class="ip-icon"></div>
+            <div>
+              <div class="ip-title mb-6"></div>
+              <div class="ip-sub"></div>
+            </div>
+          </div>
+          <!-- 4 parsed items -->
+          <div class="ip-item">
+            <div class="ip-item-l">
+              <div class="ip-item-icon"></div>
+              <div class="ip-item-txt" style="width:140px;"></div>
+            </div>
+            <div class="ip-item-badge"></div>
+          </div>
+          <div class="ip-item">
+            <div class="ip-item-l">
+              <div class="ip-item-icon"></div>
+              <div class="ip-item-txt" style="width:160px;"></div>
+            </div>
+            <div class="ip-item-badge"></div>
+          </div>
+          <div class="ip-item">
+            <div class="ip-item-l">
+              <div class="ip-item-icon"></div>
+              <div class="ip-item-txt" style="width:130px;"></div>
+            </div>
+            <div class="ip-item-badge"></div>
+          </div>
+          <div class="ip-item" style="margin-bottom:0;">
+            <div class="ip-item-l">
+              <div class="ip-item-icon"></div>
+              <div class="ip-item-txt" style="width:170px;"></div>
+            </div>
+            <div class="ip-item-badge"></div>
+          </div>
+          <!-- Footer note -->
+          <div class="ip-footer-block">
+            <div class="ip-footer-icon"></div>
+            <div class="ip-footer-txt"></div>
+          </div>
+        </div>
+
+        <!-- Right: Text + features -->
+        <div class="import-text">
+          <!-- Heading -->
+          <div class="mb-20">
+            <h2 class="wf-h2 dark" style="line-height:1.25;">Sudah punya CV lama?<br>Tarik otomatis di sini.</h2>
+          </div>
+          <!-- Body copy -->
+          <div class="stack gap-8 mb-20" style="max-width:400px;">
+            <div class="ph ph-sm darker w-100"></div>
+            <div class="ph ph-sm darker w-95"></div>
+            <div class="ph ph-sm darker w-85"></div>
+            <div class="ph ph-sm darker w-80"></div>
+          </div>
+          <!-- Feature list -->
+          <div class="import-feature">
+            <div class="import-feat-icon"></div>
+            <div class="import-feat-txt" style="max-width:280px;"></div>
+          </div>
+          <div class="import-feature">
+            <div class="import-feat-icon"></div>
+            <div class="import-feat-txt" style="max-width:240px;"></div>
+          </div>
+          <div class="import-feature">
+            <div class="import-feat-icon"></div>
+            <div class="import-feat-txt" style="max-width:260px;"></div>
+          </div>
+          <!-- CTA button -->
+          <a href="wireframe_template.html" style="text-decoration: none;">
+            <div class="btn dark-primary mt-20" style="cursor: pointer;">
+              <div class="btn-lbl light" style="width:100px;"></div>
+              <div class="btn-icon light" style="width:12px;height:12px;border-radius:50%;"></div>
+            </div>
+          </a>
+        </div>
+
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 5 — BENEFITS / FEATURES
+  ══════════════════════════════════════════════════════════ -->
+  <section class="wf-section sec-benefits">
+    <span class="sec-label light">05 · Benefits</span>
+    <div class="inner">
+      <div class="feat-grid">
+
+        <!-- Left: sticky header -->
+        <div class="feat-sticky">
+          <h2 class="wf-h2" style="margin-bottom:14px;">Apa Yang Benar&#x2011;benar Anda Dapatkan?</h2>
+          <div class="stack gap-7 mb-16">
+            <div class="ph ph-sm w-90"></div>
+            <div class="ph ph-sm w-80"></div>
+            <div class="ph ph-sm w-70"></div>
+          </div>
+          <div class="feat-divider"></div>
+        </div>
+
+        <!-- Right: feature cards -->
+        <div class="feat-cards">
+
+          <!-- Full-width card -->
+          <div class="feat-card">
+            <div class="feat-card fc-icon-box"></div>
+            <h3 class="wf-h3" style="margin-bottom:10px;">Format Layout Standar Industri</h3>
+            <div class="fc-body">
+              <div class="ph ph-sm w-100"></div>
+              <div class="ph ph-sm w-90"></div>
+              <div class="ph ph-sm w-80"></div>
+            </div>
+          </div>
+
+          <!-- 2-column cards -->
+          <div class="feat-2col">
+            <!-- Card A -->
+            <div class="feat-card">
+              <div class="feat-card fc-icon-box" style="width:40px;height:40px;margin-bottom:14px;"></div>
+              <h3 class="wf-h3" style="font-size:14px;margin-bottom:10px;">AI yang Membantu,<br>Bukan Menggantikan</h3>
+              <div class="fc-body">
+                <div class="ph ph-xs w-100"></div>
+                <div class="ph ph-xs w-90"></div>
+                <div class="ph ph-xs w-75"></div>
+              </div>
+            </div>
+            <!-- Card B -->
+            <div class="feat-card">
+              <div class="feat-card fc-icon-box" style="width:40px;height:40px;margin-bottom:14px;"></div>
+              <h3 class="wf-h3" style="font-size:14px;margin-bottom:10px;">Ekspor PDF Asli<br>&amp; Akurat</h3>
+              <div class="fc-body">
+                <div class="ph ph-xs w-100"></div>
+                <div class="ph ph-xs w-90"></div>
+                <div class="ph ph-xs w-70"></div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 6 — FINAL CTA
+  ══════════════════════════════════════════════════════════ -->
+  <section class="wf-section sec-cta">
+    <span class="sec-label">06 · CTA</span>
+    <div class="inner">
+      <!-- Heading block (centered) -->
+      <div class="cta-heading" style="margin-bottom:20px;">
+        <h2 class="wf-h2 dark" style="font-size:32px;max-width:600px;margin:0 auto;line-height:1.2;">Jangan biarkan karir impian Anda tertunda karena layout CV kaku.</h2>
+      </div>
+      <!-- Subtext -->
+      <div class="cta-sub">
+        <div class="ph ph-sm darker w-45" style="max-width:320px;"></div>
+        <div class="ph ph-sm darker w-30" style="max-width:240px;"></div>
+      </div>
+      <!-- CTA button -->
+      <div class="cta-btn-wrap">
+        <a href="wireframe_template.html" style="text-decoration: none;">
+          <div class="btn dark-primary" style="padding:14px 32px; gap:8px; cursor: pointer;">
+            <div class="btn-icon light" style="width:16px;height:16px;"></div>
+            <span class="wf-btn-text light" style="font-size:12px;">Bikin CV Sekarang — Gratis</span>
+          </div>
+        </a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ══════════════════════════════════════════════════════════
+       SECTION 7 — FOOTER
+  ══════════════════════════════════════════════════════════ -->
+  <section class="wf-section sec-footer" style="border-bottom:none;">
+    <div class="inner">
+      <div class="foot-brand">
+        <div class="foot-icon"></div>
+        <span class="wf-logo-text" style="font-size:13px;">NextCV</span>
+      </div>
+      <span class="wf-label-text dark" style="font-size:9px;">© 2025 NextCV · Dioptimalkan untuk Karir Anda.</span>
+    </div>
+  </section>
+
+  <!-- ════════════════════════════════════════════════════════
+       LEGEND / ANNOTATIONS
+  ════════════════════════════════════════════════════════ -->
+  <div class="legend">
+    <div class="legend-title">📐 Wireframe Legend &amp; Annotation</div>
+    <div class="legend-grid">
+      <div class="legend-item">
+        <div class="l-lbl">Palette</div>
+        <div class="l-val">Grayscale only — tidak merepresentasikan warna final</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">Blok abu-abu</div>
+        <div class="l-val">Placeholder teks, ikon, gambar, atau komponen UI</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">Dark section (bg #1A1A1A)</div>
+        <div class="l-val">Header · Hero · PDF Import · CTA · Footer</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">Light section (bg #FFFFFF)</div>
+        <div class="l-val">How It Works · Benefits / Features</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">Garis putus-putus</div>
+        <div class="l-val">Pemisah antar section dalam wireframe</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">Label ungu (01–07)</div>
+        <div class="l-val">Penanda nama section di pojok kiri atas setiap blok</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">Sections</div>
+        <div class="l-val">01 Header · 02 Hero · 03 How It Works · 04 PDF Import · 05 Benefits · 06 CTA · 07 Footer</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">Fidelity</div>
+        <div class="l-val">Lo-Fi — struktur &amp; layout, bukan konten atau warna akhir</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /canvas -->
+</body>
+</html>

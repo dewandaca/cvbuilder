@@ -1,0 +1,956 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>NextCV — Lo-Fi Wireframe · CV Builder</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bricolage+Grotesque:wght@700;800;900&display=swap" rel="stylesheet" />
+  <style>
+    /* ─── Reset ─────────────────────────────────────────────── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      /* Figma wireframe palette */
+      --bg:          #FAFAFA;
+      --canvas:      #FAFAFA;
+
+      /* Grayscale levels */
+      --g0:  #FFFFFF;
+      --g1:  #F8FAFC;
+      --g2:  #F1F5F9;
+      --g3:  #E2E8F0;
+      --g4:  #CBD5E1;
+      --g5:  #94A3B8;
+      --g6:  #64748B;
+      --g7:  #475569;
+      --g8:  #334155;
+      --g9:  #1E293B;
+      --g10: #0F172A;
+
+      --radius-sm: 6px;
+      --radius:    10px;
+      --radius-lg: 16px;
+      --font: 'Inter', system-ui, sans-serif;
+      --font-heading: 'Bricolage Grotesque', system-ui, sans-serif;
+    }
+
+    html {
+      font-family: var(--font);
+      background: #F8FAFC;
+      color: var(--g9);
+      font-size: 14px;
+    }
+
+    /* ─── Canvas wrapper ─────────────────────────────────────── */
+    .canvas {
+      max-width: 1280px;
+      margin: 40px auto;
+      background: var(--canvas);
+      border: 1px solid var(--g3);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+      box-shadow: 0 4px 40px rgba(0,0,0,0.04);
+      position: relative;
+    }
+
+    /* ─── Wireframe toolbar (mimics Figma) ───────────────────── */
+    .wf-toolbar {
+      background: var(--g10);
+      padding: 10px 20px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      border-bottom: 1px solid var(--g8);
+    }
+    .wf-toolbar-left { display: flex; align-items: center; gap: 12px; }
+    .wf-dots { display: flex; gap: 6px; }
+    .wf-dot { width: 10px; height: 10px; border-radius: 50%; }
+    .wf-dot.red    { background: #FF5F57; }
+    .wf-dot.yellow { background: #FFBD2E; }
+    .wf-dot.green  { background: #27C93F; }
+    .wf-title {
+      font-size: 11px; font-weight: 600; color: var(--g4);
+      letter-spacing: 0.04em;
+    }
+    .wf-badge {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+      text-transform: uppercase; color: var(--g5);
+      background: var(--g9); border: 1px solid var(--g7);
+      padding: 3px 10px; border-radius: 20px;
+    }
+    .wf-zoom {
+      font-size: 10px; font-weight: 600; color: var(--g5);
+    }
+
+    /* ─── Header Navigation ──────────────────────────────────── */
+    .wf-header {
+      background: var(--g0);
+      border-bottom: 1px solid var(--g3);
+      height: 72px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 0 32px;
+    }
+    .header-left {
+      display: flex;
+      align-items: center;
+      gap: 16px;
+    }
+    .back-btn {
+      width: 36px; height: 36px; border-radius: 50%;
+      border: 1px solid var(--g3); background: var(--g1);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--g8); font-weight: 700; text-decoration: none;
+      cursor: pointer;
+    }
+    .header-info h1 {
+      font-family: var(--font-heading);
+      font-size: 16px; font-weight: 850; color: var(--g10);
+      line-height: 1.2;
+    }
+    .header-info-sub {
+      display: flex; align-items: center; gap: 8px; font-size: 11px; color: var(--g5);
+      margin-top: 2px;
+    }
+    .change-link {
+      color: var(--g7); font-weight: 700; text-decoration: underline; cursor: pointer;
+    }
+    .change-link:hover { text-decoration: underline; }
+
+    .header-right {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+    .btn-export {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 10px 20px; border-radius: var(--radius-sm);
+      background: var(--g9); border: 1px solid var(--g8);
+      color: var(--g0); font-weight: 700; font-size: 12px;
+      cursor: pointer;
+      box-shadow: none;
+    }
+    .btn-export .icon-save {
+      width: 14px; height: 14px; background: currentColor;
+      mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='7 10 12 15 17 10'/%3E%3Cline x1='12' y1='15' x2='12' y2='3'/%3E%3C/svg%3E") no-repeat center;
+      -webkit-mask: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='currentColor' stroke-width='2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4'/%3E%3Cpolyline points='7 10 12 15 17 10'/%3E%3Cline x1='12' y1='15' x2='12' y2='3'/%3E%3C/svg%3E") no-repeat center;
+    }
+
+    /* ─── Main Workspace Area ───────────────────────────────── */
+    .workspace {
+      padding: 28px 32px;
+      display: flex;
+      flex-direction: column;
+      gap: 24px;
+    }
+
+    /* ─── Import Banner ──────────────────────────────────────── */
+    .import-banner {
+      background: var(--g0);
+      border: 1px solid var(--g3);
+      border-radius: var(--radius);
+      padding: 16px 24px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+      box-shadow: 0 1px 3px rgba(0,0,0,0.02);
+    }
+    .import-left {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+    }
+    .import-icon {
+      width: 40px; height: 40px; border-radius: var(--radius-sm);
+      background: var(--g2);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--g7); flex-shrink: 0;
+    }
+    .import-icon svg { width: 20px; height: 20px; }
+    .import-text h2 {
+      font-size: 13px; font-weight: 700; color: var(--g9); margin-bottom: 2px;
+    }
+    .import-text p {
+      font-size: 11px; color: var(--g5);
+    }
+    .btn-import {
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 8px 16px; border-radius: var(--radius-sm);
+      background: var(--g8); border: 1px solid var(--g7);
+      color: var(--g0); font-weight: 700; font-size: 12px;
+      cursor: pointer;
+      box-shadow: none;
+      flex-shrink: 0;
+    }
+
+    /* ─── Columns Workspace ─── */
+    .columns {
+      display: grid;
+      grid-template-columns: 260px 1fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    /* ─── Left Sidebar: Section Order ─── */
+    .sidebar-order {
+      background: var(--g0);
+      border: 1px solid var(--g3);
+      border-radius: var(--radius-lg);
+      padding: 20px;
+    }
+    .sidebar-title {
+      font-family: var(--font-heading);
+      font-size: 14px; font-weight: 850; color: var(--g10);
+      margin-bottom: 4px;
+    }
+    .sidebar-desc {
+      font-size: 11px; color: var(--g5); line-height: 1.4;
+      margin-bottom: 16px;
+    }
+    .order-list {
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      margin-bottom: 16px;
+    }
+    .order-item {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 10px 12px;
+      background: var(--g0);
+      border: 1px solid var(--g3);
+      border-radius: var(--radius-sm);
+      font-size: 11.5px;
+      color: var(--g8);
+      font-weight: 500;
+    }
+    .order-item.active {
+      border-color: var(--g8);
+      background: var(--g1);
+      font-weight: 600;
+      color: var(--g10);
+    }
+    .order-item-l {
+      display: flex; align-items: center; gap: 8px;
+    }
+    .order-num {
+      width: 18px; height: 18px; border-radius: 50%;
+      background: var(--g2); color: var(--g6);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 10px; font-weight: 700;
+    }
+    .order-item.active .order-num {
+      background: var(--g8); color: var(--g0);
+    }
+    .order-arrows {
+      display: flex; gap: 4px;
+    }
+    .arrow-btn {
+      width: 20px; height: 20px; border-radius: 4px;
+      border: 1px solid var(--g3); background: var(--g1);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 9px; color: var(--g5); cursor: pointer;
+    }
+    .btn-add-custom {
+      width: 100%; padding: 10px; border: 1.5px dashed var(--g3);
+      border-radius: var(--radius-sm); background: transparent;
+      color: var(--g7); font-size: 11.5px; font-weight: 700;
+      cursor: pointer; display: flex; align-items: center; justify-content: center; gap: 6px;
+    }
+
+    /* ─── Right Sidebar: Form active editor ─── */
+    .form-editor {
+      background: var(--g0);
+      border: 1px solid var(--g3);
+      border-radius: var(--radius-lg);
+      padding: 28px;
+    }
+    .form-header {
+      display: flex;
+      align-items: center;
+      gap: 14px;
+      border-bottom: 1px solid var(--g2);
+      padding-bottom: 18px;
+      margin-bottom: 24px;
+    }
+    .form-header-icon {
+      width: 44px; height: 44px; border-radius: var(--radius-sm);
+      background: var(--g2);
+      display: flex; align-items: center; justify-content: center;
+      color: var(--g8);
+    }
+    .form-header-icon svg { width: 22px; height: 22px; }
+    .form-header-text h2 {
+      font-family: var(--font-heading); font-size: 17px; font-weight: 850; color: var(--g10);
+      margin-bottom: 2px;
+    }
+    .form-header-text p {
+      font-size: 11px; color: var(--g5);
+    }
+
+    /* Grid of inputs */
+    .form-grid {
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, 1fr);
+      gap: 20px;
+    }
+    .form-group {
+      display: flex;
+      flex-direction: column;
+      gap: 6px;
+      position: relative;
+    }
+    .form-label {
+      font-size: 10px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.05em; color: var(--g6);
+    }
+    .form-input {
+      height: 40px; background: var(--g0); border: 1px solid var(--g3);
+      border-radius: var(--radius-sm); padding: 0 14px;
+      font-size: 12.5px; color: var(--g8);
+      display: flex; align-items: center;
+    }
+    .form-input.placeholder { color: var(--g4); }
+
+    .form-textarea {
+      min-height: 110px; background: var(--g0); border: 1px solid var(--g3);
+      border-radius: var(--radius-sm); padding: 12px 14px;
+      font-size: 12.5px; color: var(--g4);
+      position: relative;
+      line-height: 1.5;
+    }
+    
+    .textarea-counter {
+      position: absolute; bottom: 8px; right: 12px;
+      font-size: 10px; color: var(--g4);
+    }
+
+    /* Polish AI buttons */
+    .ai-polish-row {
+      display: flex; justify-content: flex-end; gap: 8px;
+      margin-bottom: 6px;
+    }
+    .btn-polish {
+      border: 1px solid var(--g3); border-radius: var(--radius-sm); padding: 6px 14px;
+      font-size: 11px; font-weight: 700; color: var(--g8);
+      background: var(--g2);
+      display: inline-flex; align-items: center; gap: 6px;
+      cursor: pointer;
+    }
+
+    /* ─── Bottom-Right Floating preview trigger ─── */
+    .floating-preview-trigger {
+      position: fixed;
+      bottom: 24px; right: 24px;
+      display: inline-flex; align-items: center; gap: 8px;
+      padding: 12px 24px; border-radius: 30px;
+      background: var(--g9); color: var(--g0);
+      font-size: 13px; font-weight: 700; border: 1px solid var(--g8);
+      cursor: pointer;
+      box-shadow: 0 4px 12px rgba(15, 23, 42, 0.15);
+      z-index: 900;
+    }
+    .floating-preview-trigger svg { width: 16px; height: 16px; }
+
+    /* ─── Preview Drawer ─── */
+    .drawer-overlay {
+      position: fixed;
+      top: 0; left: 0; width: 100vw; height: 100vh;
+      background: rgba(15, 23, 42, 0.15);
+      backdrop-filter: blur(2px);
+      z-index: 998;
+      display: none;
+    }
+    .preview-drawer {
+      position: fixed;
+      top: 0; right: -480px; width: 460px; height: 100vh;
+      background: var(--g0);
+      box-shadow: -10px 0 30px rgba(15, 23, 42, 0.08);
+      z-index: 999;
+      display: flex;
+      flex-direction: column;
+      transition: right 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .preview-drawer.open {
+      right: 0;
+    }
+
+    .drawer-header {
+      padding: 20px 24px;
+      border-bottom: 1px solid var(--g3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .drawer-title { font-family: var(--font-heading); font-size: 15px; font-weight: 850; }
+    .drawer-close { background: none; border: none; font-size: 20px; cursor: pointer; color: var(--g6); }
+
+    .drawer-controls {
+      padding: 16px 24px;
+      background: var(--g1);
+      border-bottom: 1px solid var(--g3);
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .preview-tabs {
+      display: flex;
+      background: var(--g3);
+      padding: 3px;
+      border-radius: var(--radius-sm);
+      gap: 2px;
+    }
+    .preview-tab {
+      border: none; background: transparent;
+      padding: 5px 10px; border-radius: 4px;
+      font-size: 11px; font-weight: 700; color: var(--g6);
+      cursor: pointer;
+    }
+    .preview-tab.active {
+      background: var(--g0);
+      color: var(--g9);
+    }
+    .preview-scale { font-size: 10px; font-weight: 700; color: var(--g5); }
+
+    /* Paper Document mock rendering */
+    .drawer-body {
+      flex: 1;
+      padding: 24px;
+      background: var(--g2);
+      overflow-y: auto;
+      display: flex;
+      justify-content: center;
+    }
+    .paper {
+      width: 100%;
+      max-width: 390px;
+      aspect-ratio: 1 / 1.414;
+      background: var(--g0);
+      border: 1px solid var(--g4);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.05);
+      padding: 24px 20px;
+      position: relative;
+    }
+
+    /* Document layouts style (Pure Grayscale) */
+    .cv-harvard { display: block; font-family: 'Times New Roman', Times, serif; }
+    .cv-harvard .name { text-align: center; font-size: 15px; font-weight: bold; margin-bottom: 2px; }
+    .cv-harvard .contact { text-align: center; font-size: 7.5px; color: var(--g8); margin-bottom: 10px; }
+    .cv-harvard .section-title { font-size: 9px; font-weight: bold; text-transform: uppercase; border-bottom: 1px solid var(--g9); padding-bottom: 1px; margin-top: 10px; margin-bottom: 4px; }
+    .cv-harvard .para { font-size: 8px; line-height: 1.35; text-align: justify; }
+    .cv-harvard .entry-head { display: flex; justify-content: space-between; font-weight: bold; font-size: 8px; }
+    .cv-harvard .entry-sub { font-style: italic; font-size: 8px; margin-bottom: 2px; }
+    .cv-harvard .bullets { list-style-type: disc; margin-left: 10px; font-size: 8px; line-height: 1.3; }
+
+    .cv-modern { display: none; font-family: 'Inter', sans-serif; }
+    .cv-modern .header-row { display: flex; gap: 10px; margin-bottom: 10px; }
+    .cv-modern .photo { width: 36px; height: 42px; background: var(--g3); border-radius: 4px; flex-shrink: 0; }
+    .cv-modern .header-info { flex: 1; }
+    .cv-modern .name { font-size: 13px; font-weight: bold; color: var(--g9); text-transform: uppercase; margin-bottom: 2px; }
+    .cv-modern .contact-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 2px; font-size: 7.5px; color: var(--g7); }
+    .cv-modern .section-title { font-size: 8.5px; font-weight: bold; text-transform: uppercase; color: var(--g9); border-bottom: 1.5px solid var(--g9); padding-bottom: 2px; margin-top: 10px; margin-bottom: 4px; }
+    .cv-modern .para { font-size: 8px; line-height: 1.35; }
+    .cv-modern .bullets { list-style-type: square; margin-left: 10px; font-size: 8px; line-height: 1.3; }
+
+    .cv-creative { display: none; font-family: 'Inter', sans-serif; }
+    .cv-creative .creative-grid { display: grid; grid-template-columns: 32% 68%; gap: 10px; height: 100%; }
+    .cv-creative .sidebar { border-right: 1px solid var(--g3); padding-right: 6px; display: flex; flex-direction: column; gap: 6px; }
+    .cv-creative .main-content { display: flex; flex-direction: column; gap: 8px; padding-left: 6px; }
+    .cv-creative .name { font-size: 10px; font-weight: bold; color: var(--g9); text-transform: uppercase; margin-bottom: 4px; }
+    .cv-creative .contact-item { font-size: 7.5px; color: var(--g7); margin-bottom: 2px; }
+    .cv-creative .section-title { font-size: 8px; font-weight: bold; text-transform: uppercase; border-bottom: 1.5px solid var(--g8); padding-bottom: 1px; margin-top: 8px; margin-bottom: 4px; }
+    .cv-creative .para { font-size: 7.5px; line-height: 1.35; }
+    .cv-creative .bullets { list-style-type: disc; margin-left: 10px; font-size: 7.5px; line-height: 1.3; }
+
+    /* ─── Legend / Annotations ───────────────────────────────── */
+    .legend {
+      background: var(--g1); border-top: 2px dashed var(--g3);
+      padding: 32px 40px;
+    }
+    .legend-title {
+      font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+      text-transform: uppercase; color: var(--g5); margin-bottom: 20px;
+    }
+    .legend-grid {
+      display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 12px;
+    }
+    .legend-item {
+      background: var(--g0); border: 1px solid var(--g3);
+      border-radius: var(--radius-sm); padding: 10px 14px;
+    }
+    .legend-item .l-lbl {
+      font-size: 9px; font-weight: 700; text-transform: uppercase;
+      letter-spacing: 0.1em; color: var(--brand-blue); margin-bottom: 4px;
+    }
+    .legend-item .l-val { font-size: 11px; color: var(--g6); line-height: 1.5; }
+  </style>
+</head>
+<body>
+
+<!-- ════════════ CANVAS ════════════ -->
+<div class="canvas">
+
+  <!-- ── Wireframe toolbar ── -->
+  <div class="wf-toolbar">
+    <div class="wf-toolbar-left">
+      <div class="wf-dots">
+        <div class="wf-dot red"></div>
+        <div class="wf-dot yellow"></div>
+        <div class="wf-dot green"></div>
+      </div>
+      <span class="wf-title">NextCV — CV Editor &amp; Preview Workspace · Lo-Fi Wireframe</span>
+    </div>
+    <div class="wf-badge">Lo-Fi · Grayscale</div>
+    <span class="wf-zoom">95%</span>
+  </div>
+
+  <!-- ── Navbar ── -->
+  <header class="wf-header">
+    <div class="header-left">
+      <a href="wireframe_template.html" class="back-circle">&larr;</a>
+      <div class="header-info">
+        <h1 id="active-builder-title">Layout 01 Builder</h1>
+        <div class="header-info-sub">
+          <span>Draft Auto-saved</span>
+          <span>&bull;</span>
+          <a href="wireframe_template.html" class="change-link">Ubah Template</a>
+        </div>
+      </div>
+    </div>
+    <div class="header-right">
+      <button class="btn-export">
+        <span class="icon-save"></span>
+        <span>Export PDF</span>
+      </button>
+    </div>
+  </header>
+
+  <!-- ══════════════════════════════════════════════════════════
+       MAIN WORKSPACE AREA
+  ══════════════════════════════════════════════════════════ -->
+  <div class="workspace">
+    <span class="sec-label" style="position: absolute; top: 12px; left: 12px;">02 · Workspace Layout</span>
+
+    <!-- 1. Top PDF Import Banner -->
+    <div class="import-banner">
+      <div class="import-left">
+        <div class="import-icon">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin='round'>
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+            <polyline points="17 8 12 3 7 8" />
+            <line x1="12" y1="3" x2="12" y2="15" />
+          </svg>
+        </div>
+        <div class="import-text">
+          <h2>Sudah punya CV sebelumnya?</h2>
+          <p>Upload di sini untuk mendeteksi data CV lama dan mengisi form secara otomatis.</p>
+        </div>
+      </div>
+      <button class="btn-import">
+        <svg style="width:13px; height:13px; display:inline-block; vertical-align:middle; margin-right:4px;" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin='round'>
+          <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+          <polyline points="17 8 12 3 7 8" />
+          <line x1="12" y1="3" x2="12" y2="15" />
+        </svg>
+        <span>Import CV</span>
+      </button>
+    </div>
+
+    <!-- 2. Two Columns Columns Workspace Grid -->
+    <div class="columns">
+      
+      <!-- Left Column: Section Order Card -->
+      <aside class="sidebar-order">
+        <h3 class="sidebar-title">CV Section Order</h3>
+        <p class="sidebar-desc">Klik bagian untuk mengedit. Pakai panah untuk ubah urutan PDF.</p>
+        
+        <div class="order-list">
+          <div class="order-item active">
+            <div class="order-item-l">
+              <span class="order-num">1</span>
+              <span>Summary</span>
+            </div>
+            <div class="order-arrows">
+              <span class="arrow-btn">&uarr;</span>
+              <span class="arrow-btn">&darr;</span>
+            </div>
+          </div>
+          
+          <div class="order-item">
+            <div class="order-item-l">
+              <span class="order-num">2</span>
+              <span>Education</span>
+            </div>
+            <div class="order-arrows">
+              <span class="arrow-btn">&uarr;</span>
+              <span class="arrow-btn">&darr;</span>
+            </div>
+          </div>
+
+          <div class="order-item">
+            <div class="order-item-l">
+              <span class="order-num">3</span>
+              <span>Work Experience</span>
+            </div>
+            <div class="order-arrows">
+              <span class="arrow-btn">&uarr;</span>
+              <span class="arrow-btn">&darr;</span>
+            </div>
+          </div>
+
+          <div class="order-item">
+            <div class="order-item-l">
+              <span class="order-num">4</span>
+              <span>Projects</span>
+            </div>
+            <div class="order-arrows">
+              <span class="arrow-btn">&uarr;</span>
+              <span class="arrow-btn">&darr;</span>
+            </div>
+          </div>
+
+          <div class="order-item">
+            <div class="order-item-l">
+              <span class="order-num">5</span>
+              <span>Skills</span>
+            </div>
+            <div class="order-arrows">
+              <span class="arrow-btn">&uarr;</span>
+              <span class="arrow-btn">&darr;</span>
+            </div>
+          </div>
+
+          <div class="order-item">
+            <div class="order-item-l">
+              <span class="order-num">6</span>
+              <span>Honors &amp; Awards</span>
+            </div>
+            <div class="order-arrows">
+              <span class="arrow-btn">&uarr;</span>
+              <span class="arrow-btn">&darr;</span>
+            </div>
+          </div>
+        </div>
+
+        <button class="btn-add-custom">+ Tambah Custom Section</button>
+      </aside>
+
+      <!-- Right Column: Form Active Card -->
+      <main class="form-editor">
+        
+        <!-- Active section header -->
+        <div class="form-header">
+          <div class="form-header-icon">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin='round'>
+              <path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" />
+              <polyline points="14 2 14 8 20 8" />
+              <line x1="16" y1="13" x2="8" y2="13" />
+              <line x1="16" y1="17" x2="8" y2="17" />
+              <polyline points="10 9 9 9 8 9" />
+            </svg>
+          </div>
+          <div class="form-header-text">
+            <h2>Personal Details &amp; Summary</h2>
+            <p>Complete this section for better results</p>
+          </div>
+        </div>
+
+        <!-- Form fields grid -->
+        <div class="form-grid">
+          
+          <div class="form-group">
+            <label class="form-label">Section Title / Header</label>
+            <div class="form-input">Summary</div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Full Name</label>
+              <div class="form-input placeholder">e.g. Dewanda Chen Ahnaf</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Address</label>
+              <div class="form-input placeholder">e.g. Jakarta, Indonesia</div>
+            </div>
+          </div>
+
+          <div class="form-row">
+            <div class="form-group">
+              <label class="form-label">Email Address</label>
+              <div class="form-input placeholder">e.g. dewa@gmail.com</div>
+            </div>
+            <div class="form-group">
+              <label class="form-label">Phone Number</label>
+              <div class="form-input placeholder">e.g. +62 812...</div>
+            </div>
+          </div>
+
+          <div class="form-group">
+            <label class="form-label">LinkedIn URL</label>
+            <div class="form-input placeholder">linkedin.com/in/...</div>
+          </div>
+
+          <div class="form-group">
+            <div style="display:flex; justify-content:space-between; align-items:center; margin-bottom:4px;">
+              <label class="form-label">Professional Summary</label>
+              <div class="ai-polish-row">
+                <button class="btn-polish">
+                  <svg style="width:11px; height:11px; fill:currentColor; display:inline-block; vertical-align:middle;" viewBox="0 0 24 24"><path d="M12 2L9.12 9.12 2 12l7.12 2.88L12 22l2.88-7.12L21 12l-7.12-2.88z"/></svg>
+                  <span>Polish ID</span>
+                </button>
+                <button class="btn-polish">
+                  <svg style="width:11px; height:11px; fill:currentColor; display:inline-block; vertical-align:middle;" viewBox="0 0 24 24"><path d="M12 2L9.12 9.12 2 12l7.12 2.88L12 22l2.88-7.12L21 12l-7.12-2.88z"/></svg>
+                  <span>Polish EN</span>
+                </button>
+              </div>
+            </div>
+            <div class="form-textarea">
+              Tulis deskripsi singkat mengenai latar belakang profesional kamu...
+              <div class="textarea-counter">0 karakter</div>
+            </div>
+          </div>
+
+        </div>
+
+      </main>
+
+    </div>
+
+  </div>
+
+  <!-- ─── Floating Preview Toggle Button ─── -->
+  <button class="floating-preview-trigger" onclick="toggleDrawer(true)">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin='round'>
+      <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+      <circle cx="12" cy="12" r="3" />
+    </svg>
+    <span>Realtime Preview</span>
+  </button>
+
+  <!-- ─── Drawer overlay backdrop ─── -->
+  <div class="drawer-overlay" id="preview-overlay" onclick="toggleDrawer(false)"></div>
+
+  <!-- ─── Drawer sidebar layout ─── -->
+  <div class="preview-drawer" id="preview-sidebar">
+    <div class="drawer-header">
+      <span class="drawer-title">Realtime Preview Document</span>
+      <button class="drawer-close" onclick="toggleDrawer(false)">&times;</button>
+    </div>
+    
+    <div class="drawer-controls">
+      <div class="preview-tabs">
+        <button class="preview-tab active" id="btn-tab-harvard" onclick="switchPreview('harvard')">Layout 01 Preview</button>
+        <button class="preview-tab" id="btn-tab-modern" onclick="switchPreview('modern')">Layout 02 Preview</button>
+        <button class="preview-tab" id="btn-tab-creative" onclick="switchPreview('layout03')">Layout 03 Preview</button>
+      </div>
+      <span class="preview-scale">Skala: 55%</span>
+    </div>
+
+    <div class="drawer-body">
+      <div class="paper" id="paper-doc">
+        
+        <!-- Harvard Template layout -->
+        <div class="cv-harvard" id="cv-harvard-layout">
+          <div class="name">DEWANDA CHEN AHNAF</div>
+          <div class="contact">Jakarta, Indonesia &bull; mail@dewanda.com &bull; +62 812-3456-7890 &bull; linkedin.com/in/dewandaca</div>
+          
+          <div class="section-title">Summary</div>
+          <p class="para">Software Engineer antusias dengan 3+ tahun pengalaman di Tokopedia membangun aplikasi frontend berskala besar dengan performa tinggi. Berpengalaman dalam kolaborasi tim lintas fungsi.</p>
+          
+          <div class="section-title">Work Experience</div>
+          <div class="entry-head">
+            <span>Software Engineer, Tokopedia</span>
+            <span>Jan 2022 - Present</span>
+          </div>
+          <div class="entry-sub">Jakarta, Indonesia</div>
+          <ul class="bullets">
+            <li>Memimpin migrasi arsitektur frontend web utama menggunakan Next.js dan TypeScript.</li>
+            <li>Mengoptimalkan loading time website sebesar 35%, meningkatkan tingkat retensi retensi pengguna baru.</li>
+          </ul>
+
+          <div class="entry-head" style="margin-top:8px;">
+            <span>Junior Frontend Developer, BukaLapak</span>
+            <span>Jun 2020 - Dec 2021</span>
+          </div>
+          <div class="entry-sub">Bandung, Indonesia</div>
+          <ul class="bullets">
+            <li>Mengembangkan fitur promo page interaktif untuk kampanye bulanan e-commerce.</li>
+          </ul>
+
+          <div class="section-title">Education</div>
+          <div class="entry-head">
+            <span>Universitas Indonesia, S1 Ilmu Komputer</span>
+            <span>2018 - 2022</span>
+          </div>
+          <div class="entry-sub">GPA: 3.82 / 4.00</div>
+        </div>
+
+        <!-- Modern Template layout -->
+        <div class="cv-modern" id="cv-modern-layout">
+          <div class="header-row">
+            <div class="photo" style="display:flex; align-items:center; justify-content:center; font-size:7px; color:var(--g5); font-weight:700;">FOTO PROFIL</div>
+            <div class="header-info">
+              <div class="name">DEWANDA CHEN AHNAF</div>
+              <div class="contact-grid">
+                <div><strong>Email:</strong> mail@dewanda.com</div>
+                <div><strong>Telepon:</strong> +62 812-3456-7890</div>
+                <div><strong>Alamat:</strong> Jakarta, Indonesia</div>
+                <div><strong>LinkedIn:</strong> linkedin.com/in/dewandaca</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="section-title">Summary</div>
+          <p class="para">Software Engineer antusias dengan 3+ tahun pengalaman di Tokopedia membangun aplikasi frontend berskala besar dengan performa tinggi. Berpengalaman dalam kolaborasi tim lintas fungsi.</p>
+
+          <div class="section-title">Experience</div>
+          <div class="entry-head">
+            <span>Software Engineer - Tokopedia</span>
+            <span>2022 - Present</span>
+          </div>
+          <ul class="bullets">
+            <li>Memimpin migrasi arsitektur frontend web utama menggunakan Next.js dan TypeScript.</li>
+            <li>Mengoptimalkan loading time website sebesar 35%, meningkatkan tingkat retensi pengguna baru.</li>
+          </ul>
+
+          <div class="section-title">Education</div>
+          <div class="entry-head">
+            <span>Universitas Indonesia</span>
+            <span>2018 - 2022</span>
+          </div>
+          <p style="font-size:8px; font-style:italic;">S1 Ilmu Komputer | GPA: 3.82</p>
+        </div>
+
+        <!-- Layout 03 Mode (Creative/Two Columns) -->
+        <div class="cv-creative" id="cv-creative-layout">
+          <div class="creative-grid">
+            <div class="sidebar">
+              <div class="name" style="font-size: 9px;">DEWANDA C. A.</div>
+              <div class="contact-item">mail@dewanda.com</div>
+              <div class="contact-item">+62 812-3456</div>
+              <div class="contact-item">Jakarta, Indo</div>
+              
+              <div class="section-title" style="margin-top: 10px;">Skills</div>
+              <div class="contact-item">Python &bull; Expert</div>
+              <div class="contact-item">Next.js &bull; Inter</div>
+              <div class="contact-item">React &bull; Expert</div>
+            </div>
+            <div class="main-content">
+              <div class="section-title">Summary</div>
+              <p class="para">Software Engineer antusias dengan 3+ tahun pengalaman di Tokopedia membangun aplikasi frontend berskala besar dengan performa tinggi.</p>
+              
+              <div class="section-title">Experience</div>
+              <div class="entry-head">Software Engineer at Tokopedia</div>
+              <div style="font-size: 7px; color: var(--g6); margin-bottom: 2px;">2022 - Present</div>
+              <ul class="bullets">
+                <li>Memimpin migrasi arsitektur frontend web utama menggunakan Next.js.</li>
+                <li>Mengoptimalkan loading time website sebesar 35%.</li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+      </div>
+    </div>
+  </div>
+
+  <!-- ════════════════════════════════════════════════════════
+       LEGEND / ANNOTATIONS
+  ════════════════════════════════════════════════════════ -->
+  <div class="legend">
+    <div class="legend-title">📐 Wireframe Legend &amp; Annotation</div>
+    <div class="legend-grid">
+      <div class="legend-item">
+        <div class="l-lbl">Workspace Columns</div>
+        <div class="l-val">Layout 2-Kolom: Sidebar CV Section Order (260px) di kiri dan Form Editor aktif di kanan.</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">AI PDF Import Banner</div>
+        <div class="l-val">Banner lebar penuh di bagian atas untuk mengunggah CV PDF lama guna mengisi form otomatis.</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">AI Polish Action</div>
+        <div class="l-val">Tombol "Polish ID" (ungu) dan "Polish EN" (biru) di atas text area summary untuk optimasi AI.</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">Slide-Out Preview Drawer</div>
+        <div class="l-val">Tergantung klik tombol "Realtime Preview", panel draf PDF akan muncul dari sisi kanan secara responsif.</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">Active Item Highlight</div>
+        <div class="l-val">Seksi yang sedang diedit (Summary) memiliki outline biru pada menu bar navigasi kiri.</div>
+      </div>
+      <div class="legend-item">
+        <div class="l-lbl">Ubah Template</div>
+        <div class="l-val">Aksi untuk kembali ke wireframe_template.html tanpa menghapus draf pengisian.</div>
+      </div>
+    </div>
+  </div>
+
+</div><!-- /canvas -->
+
+<!-- ── Toggle Script for interactive review ── -->
+<script>
+  // Read initial template query param
+  const urlParams = new URLSearchParams(window.location.search);
+  const initialTemplate = urlParams.get('template') || 'harvard';
+  switchPreview(initialTemplate);
+
+  function switchPreview(type) {
+    const harvardLayout = document.getElementById('cv-harvard-layout');
+    const modernLayout = document.getElementById('cv-modern-layout');
+    const creativeLayout = document.getElementById('cv-creative-layout');
+    const tabHarvard = document.getElementById('btn-tab-harvard');
+    const tabModern = document.getElementById('btn-tab-modern');
+    const tabCreative = document.getElementById('btn-tab-creative');
+    const builderTitle = document.getElementById('active-builder-title');
+
+    // Hide all
+    harvardLayout.style.display = 'none';
+    modernLayout.style.display = 'none';
+    creativeLayout.style.display = 'none';
+    tabHarvard.classList.remove('active');
+    tabModern.classList.remove('active');
+    tabCreative.classList.remove('active');
+
+    if (type === 'modern') {
+      modernLayout.style.display = 'block';
+      tabModern.classList.add('active');
+      builderTitle.innerText = 'Layout 02 Builder';
+    } else if (type === 'layout03' || type === 'creative') {
+      creativeLayout.style.display = 'block';
+      tabCreative.classList.add('active');
+      builderTitle.innerText = 'Layout 03 Builder';
+    } else {
+      harvardLayout.style.display = 'block';
+      tabHarvard.classList.add('active');
+      builderTitle.innerText = 'Layout 01 Builder';
+    }
+  }
+
+  // Preview Drawer Open/Close Logic
+  function toggleDrawer(open) {
+    const sidebar = document.getElementById('preview-sidebar');
+    const overlay = document.getElementById('preview-overlay');
+    
+    if (open) {
+      sidebar.classList.add('open');
+      overlay.style.display = 'block';
+    } else {
+      sidebar.classList.remove('open');
+      overlay.style.display = 'none';
+    }
+  }
+</script>
+</body>
+</html>

@@ -1195,9 +1195,13 @@ export default function CvBuilder() {
 
   // --- IMPORT CV ---
   const handleFileSelect = (file: File) => {
-    const allowed = ['application/pdf', 'image/jpeg', 'image/png', 'image/webp', 'text/plain'];
+    const allowed = [
+      'application/pdf',
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
+      'application/msword', // .doc
+    ];
     if (!allowed.includes(file.type)) {
-      setImportError('Format tidak didukung. Gunakan PDF, JPG, PNG, atau TXT.');
+      setImportError('Format tidak didukung. Gunakan PDF atau DOCX/DOC.');
       return;
     }
     setSelectedFile(file);
@@ -1215,6 +1219,20 @@ export default function CvBuilder() {
       const formData = new FormData();
       formData.append('file', selectedFile);
 
+      type ParsedCustomSectionItem = {
+        title?: string;
+        subtitle?: string;
+        startDate?: string;
+        endDate?: string;
+        isCurrent?: boolean;
+        description?: string;
+      };
+      type ParsedCustomSection = {
+        title?: string;
+        mode?: 'simple' | 'experience';
+        content?: string;
+        items?: ParsedCustomSectionItem[];
+      };
       type ParsedCVData = {
         personalInfo?: { fullName?: string; address?: string; email?: string; phone?: string; linkedin?: string; summary?: string; };
         educations?: Array<{ school?: string; major?: string; gpa?: string; startDate?: string; endDate?: string; isCurrent?: boolean; description?: string; }>;
@@ -1222,6 +1240,8 @@ export default function CvBuilder() {
         projects?: Array<{ name?: string; role?: string; startDate?: string; endDate?: string; description?: string; }>;
         achievements?: Array<{ name?: string; year?: string; }>;
         skills?: { hard?: string; soft?: string; };
+        customSections?: ParsedCustomSection[];
+        sectionOrder?: string[];
       };
 
       const data = await parseCvApi<ParsedCVData>(formData);
@@ -1294,6 +1314,86 @@ export default function CvBuilder() {
         });
       }
 
+      // Fill custom sections from AI (non-standard sections)
+      // Build a title-to-id map so we can link sectionOrder tokens to actual custom section IDs
+      const importedCustomSections: CustomSection[] = [];
+      const titleToCustomId = new Map<string, number>();
+
+      if (data.customSections && data.customSections.length > 0) {
+        data.customSections.forEach((cs, i) => {
+          const id = i + 1;
+          const sectionTitle = cs.title || '';
+          const mode: CustomSectionMode = cs.mode === 'experience' ? 'experience' : 'simple';
+          const items: CustomSectionItem[] = (cs.items || []).map((item, j) => ({
+            id: j + 1,
+            title: item.title || '',
+            subtitle: item.subtitle || '',
+            startDate: item.startDate || '',
+            endDate: item.endDate || '',
+            isCurrent: item.isCurrent || false,
+            description: item.description || '',
+          }));
+
+          importedCustomSections.push({
+            id,
+            title: sectionTitle,
+            content: cs.content || '',
+            mode,
+            items,
+          });
+
+          // Map both the exact title and the "custom:<title>" token format to the id
+          titleToCustomId.set(sectionTitle, id);
+          titleToCustomId.set(`custom:${sectionTitle}`, id);
+        });
+        setCustomSections(importedCustomSections);
+      } else {
+        setCustomSections([]);
+      }
+
+      // Rebuild sectionOrder from AI-provided order (respecting the CV's original layout)
+      if (data.sectionOrder && data.sectionOrder.length > 0) {
+        const resolvedOrder: SectionOrderToken[] = [];
+        const seen = new Set<string>();
+
+        const appendToken = (token: SectionOrderToken) => {
+          if (seen.has(token)) return;
+          seen.add(token);
+          resolvedOrder.push(token);
+        };
+
+        for (const rawToken of data.sectionOrder) {
+          if (isBaseSectionKey(rawToken)) {
+            appendToken(rawToken);
+          } else if (rawToken.startsWith('custom:')) {
+            // The AI returns "custom:<title>", we need to find the matching id
+            const matchedId = titleToCustomId.get(rawToken);
+            if (matchedId !== undefined) {
+              appendToken(`custom:${matchedId}` as `custom:${number}`);
+            }
+          }
+        }
+
+        // Append any base sections not mentioned by AI
+        for (const baseSection of DEFAULT_SECTION_ORDER) {
+          appendToken(baseSection);
+        }
+
+        // Append any custom sections not referenced in sectionOrder
+        for (const cs of importedCustomSections) {
+          appendToken(`custom:${cs.id}` as `custom:${number}`);
+        }
+
+        setSectionOrder(resolvedOrder);
+      } else {
+        // No sectionOrder from AI: reset to default + append custom sections
+        const fallbackOrder: SectionOrderToken[] = [...DEFAULT_SECTION_ORDER];
+        for (const cs of importedCustomSections) {
+          fallbackOrder.push(`custom:${cs.id}` as `custom:${number}`);
+        }
+        setSectionOrder(fallbackOrder);
+      }
+
       setImportSuccess(true);
       setActiveSection('summary');
 
@@ -1310,6 +1410,7 @@ export default function CvBuilder() {
       setIsParsingCv(false);
     }
   };
+
 
   // --- UI COMPONENTS ---
   const SectionHeader = ({ title, icon: Icon }: { title: string; icon: React.ElementType }) => (
@@ -2268,7 +2369,7 @@ export default function CvBuilder() {
                     <input
                       ref={fileInputRef}
                       type="file"
-                      accept=".pdf,.jpg,.jpeg,.png,.webp,.txt"
+                      accept=".pdf,.doc,.docx"
                       className="hidden"
                       onChange={(e) => {
                         const file = e.target.files?.[0];
@@ -2294,7 +2395,7 @@ export default function CvBuilder() {
                           <p className="text-xs text-slate-400 mt-1">atau klik untuk pilih file</p>
                         </div>
                         <div className="flex gap-2 flex-wrap justify-center">
-                          {['PDF', 'JPG', 'PNG', 'TXT'].map(fmt => (
+                          {['PDF', 'DOCX', 'DOC'].map(fmt => (
                             <span key={fmt} className="px-2 py-0.5 bg-slate-200 text-slate-600 rounded text-[10px] font-bold">{fmt}</span>
                           ))}
                         </div>

@@ -1,0 +1,493 @@
+  <!DOCTYPE html>
+  <html lang="id">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>NextCV — Lo-Fi Wireframe · Pilih Template</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Bricolage+Grotesque:wght@700;800;900&display=swap" rel="stylesheet" />
+    <style>
+      /* ─── Reset ─────────────────────────────────────────────── */
+      *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+      :root {
+        /* Figma wireframe palette */
+        --bg:          #F0F0F0;
+        --canvas:      #FAFAFA;
+
+        /* Grayscale levels */
+        --g0:  #FFFFFF;
+        --g1:  #F5F5F5;
+        --g2:  #EBEBEB;
+        --g3:  #DEDEDE;
+        --g4:  #CFCFCF;
+        --g5:  #B8B8B8;
+        --g6:  #9A9A9A;
+        --g7:  #6A6A6A;
+        --g8:  #3A3A3A;
+        --g9:  #2A2A2A;
+        --g10: #1A1A1A;
+
+        /* Dark surface levels */
+        --d1:  #242424;
+        --d2:  #2E2E2E;
+        --d3:  #363636;
+        --d4:  #424242;
+        --d5:  #525252;
+
+        /* Annotation */
+        --ann: #6366F1;
+        --ann-green: #10B981;
+
+        --radius-sm: 4px;
+        --radius:    8px;
+        --radius-lg: 12px;
+        --radius-xl: 16px;
+        --font: 'Inter', system-ui, sans-serif;
+        --font-heading: 'Bricolage Grotesque', system-ui, sans-serif;
+      }
+
+      html {
+        font-family: var(--font);
+        background: var(--bg);
+        color: var(--g10);
+        font-size: 14px;
+      }
+
+      /* ─── Canvas wrapper ─────────────────────────────────────── */
+      .canvas {
+        max-width: 1280px;
+        margin: 40px auto;
+        background: var(--canvas);
+        border: 1px solid var(--g4);
+        border-radius: 16px;
+        overflow: hidden;
+        box-shadow: 0 4px 40px rgba(0,0,0,0.08);
+      }
+
+      /* ─── Wireframe toolbar (mimics Figma) ───────────────────── */
+      .wf-toolbar {
+        background: var(--g10);
+        padding: 10px 20px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        border-bottom: 1px solid var(--d4);
+      }
+      .wf-toolbar-left { display: flex; align-items: center; gap: 12px; }
+      .wf-dots { display: flex; gap: 6px; }
+      .wf-dot { width: 10px; height: 10px; border-radius: 50%; }
+      .wf-dot.red    { background: #FF5F57; }
+      .wf-dot.yellow { background: #FFBD2E; }
+      .wf-dot.green  { background: #27C93F; }
+      .wf-title {
+        font-size: 11px; font-weight: 600; color: var(--g5);
+        letter-spacing: 0.04em;
+      }
+      .wf-badge {
+        font-size: 10px; font-weight: 700; letter-spacing: 0.08em;
+        text-transform: uppercase; color: var(--g6);
+        background: var(--d3); border: 1px solid var(--d5);
+        padding: 3px 10px; border-radius: 20px;
+      }
+      .wf-zoom {
+        font-size: 10px; font-weight: 600; color: var(--g6);
+      }
+
+      /* ─── Main Section wrapper ───────────────────────────────── */
+      .wf-section {
+        position: relative;
+        background: var(--d1);
+        padding: 60px 0 80px;
+        border-bottom: 1.5px dashed var(--g4);
+      }
+
+      /* ─── Text styles ────────────────────────────────────────── */
+      .wf-h1 {
+        font-family: var(--font-heading);
+        font-size: 38px;
+        font-weight: 900;
+        line-height: 1.15;
+        letter-spacing: -0.025em;
+        color: var(--g0);
+      }
+      .wf-h2 {
+        font-family: var(--font-heading);
+        font-size: 26px;
+        font-weight: 800;
+        line-height: 1.2;
+        letter-spacing: -0.02em;
+        color: var(--g0);
+      }
+      .wf-h3 {
+        font-family: var(--font-heading);
+        font-size: 18px;
+        font-weight: 800;
+        letter-spacing: -0.015em;
+        color: var(--g0);
+        margin-bottom: 6px;
+      }
+      .wf-label-text {
+        font-size: 10px;
+        font-weight: 700;
+        letter-spacing: 0.1em;
+        text-transform: uppercase;
+        color: var(--ann);
+      }
+      .wf-logo-text {
+        font-family: var(--font-heading);
+        font-size: 16px; 
+        font-weight: 800;
+        color: var(--g0); 
+        letter-spacing: -0.01em;
+      }
+      .wf-btn-text {
+        font-size: 11px; font-weight: 700; color: var(--g0);
+      }
+
+      /* Top-left annotation label */
+      .sec-label {
+        position: absolute;
+        top: 15px; left: 15px;
+        font-size: 9px; font-weight: 700; letter-spacing: 0.12em;
+        text-transform: uppercase; color: var(--ann);
+        background: rgba(99,102,241,0.08);
+        border: 1px solid rgba(99,102,241,0.25);
+        padding: 2px 8px; border-radius: 20px;
+        z-index: 10;
+        pointer-events: none;
+      }
+
+      /* Inner layout container */
+      .inner {
+        max-width: 1060px;
+        margin: 0 auto;
+        padding: 0 30px;
+      }
+
+      /* Header navbar styling */
+      .nav-bar {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        height: 64px;
+        border-bottom: 1px solid var(--d4);
+        background: var(--d1);
+      }
+      .nav-left { display: flex; align-items: center; gap: 10px; text-decoration: none; }
+      .back-btn {
+        width: 32px; height: 32px; border-radius: var(--radius-sm);
+        border: 1px solid var(--d4); background: var(--d3);
+        display: flex; align-items: center; justify-content: center;
+        color: var(--g0); font-weight: bold; cursor: pointer;
+      }
+      .nav-left span { font-family: var(--font-heading); font-size: 12px; font-weight: 700; color: var(--g4); }
+
+      /* Title Block */
+      .title-block {
+        text-align: center;
+        max-width: 600px;
+        margin: 0 auto 56px;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        gap: 12px;
+      }
+      .step-pill {
+        display: inline-flex; align-items: center; gap: 6px;
+        padding: 4px 12px; border-radius: 20px;
+        background: rgba(99,102,241,0.1); border: 1px solid rgba(99,102,241,0.25);
+      }
+      .step-pill-dot { width: 6px; height: 6px; border-radius: 50%; background: var(--ann); }
+      .step-pill-txt { font-size: 9px; font-weight: 700; text-transform: uppercase; color: var(--ann); letter-spacing: 0.08em; }
+
+      .sub-paragraph {
+        font-size: 13px;
+        color: var(--g6);
+        line-height: 1.5;
+      }
+
+      /* Template Grid */
+      .grid-3col {
+        display: grid;
+        grid-template-columns: repeat(3, 1fr);
+        gap: 24px;
+        align-items: stretch;
+      }
+
+      /* Card block */
+      .tmpl-card {
+        background: var(--d2);
+        border: 1.5px solid var(--d4);
+        border-radius: var(--radius-xl);
+        padding: 24px;
+        display: flex;
+        flex-direction: column;
+        justify-content: space-between;
+        cursor: pointer;
+        text-decoration: none;
+        transition: all 0.2s ease;
+        position: relative;
+      }
+      .tmpl-card:hover {
+        border-color: var(--g4);
+      }
+      .tmpl-card-header {
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 20px;
+      }
+      .tmpl-num {
+        width: 32px; height: 32px; border-radius: var(--radius-sm);
+        display: flex; align-items: center; justify-content: center;
+        font-size: 12px; font-weight: 700; color: var(--g0);
+        background: var(--d3); border: 1px solid var(--d4);
+      }
+
+      .tmpl-badge {
+        font-size: 9px; font-weight: 700; text-transform: uppercase;
+        padding: 3px 8px; border-radius: 20px; letter-spacing: 0.05em;
+        background: var(--d3); border: 1px solid var(--d4); color: var(--g5);
+      }
+
+      /* Miniature Previews inside Card */
+      .mini-preview {
+        height: 140px;
+        background: var(--d3);
+        border: 1px solid var(--d4);
+        border-radius: var(--radius);
+        margin-bottom: 20px;
+        padding: 12px;
+        display: flex;
+        flex-direction: column;
+        gap: 6px;
+        overflow: hidden;
+        position: relative;
+      }
+      
+      /* Harvard Mini Structure */
+      .mini-harvard-name { height: 8px; background: var(--g5); width: 45%; margin: 0 auto 8px; border-radius: 1px; }
+      .mini-harvard-sub { height: 4px; background: var(--d5); width: 60%; margin: 0 auto 10px; border-radius: 1px; }
+      .mini-harvard-divider { height: 1px; background: var(--d5); width: 100%; margin-bottom: 6px; }
+      .mini-line { height: 4px; background: var(--d5); border-radius: 1px; }
+      .mini-line.w-80 { width: 80%; }
+      .mini-line.w-90 { width: 90%; }
+      .mini-line.w-70 { width: 70%; }
+      .mini-harvard-divider" { height: 1px; background: var(--d5); width: 100%; }
+      .mini-line.w-40 { width: 40%; }
+      .mini-line.w-30 { width: 30%; }
+      .mini-line.g5 { background: var(--g5); }
+
+      /* Modern Mini Structure */
+      .mini-modern-head { display: flex; gap: 10px; margin-bottom: 12px; }
+      .mini-modern-photo { width: 28px; height: 32px; background: var(--g5); flex-shrink: 0; border-radius: 2px; }
+      .mini-modern-meta { flex: 1; display: flex; flex-direction: column; gap: 4px; justify-content: center; }
+      .mini-modern-name { height: 8px; background: var(--g5); width: 70%; border-radius: 1px; }
+      .mini-modern-contact { height: 4px; background: var(--d5); width: 90%; border-radius: 1px; }
+      .mini-modern-title { height: 6px; background: var(--g5); width: 40%; border-radius: 1px; margin-top: 4px; }
+
+      /* Creative Mini Structure */
+      .mini-creative-split { display: flex; gap: 10px; height: 100%; }
+      .mini-creative-left { width: 25px; border-right: 1px solid var(--d4); display: flex; flex-direction: column; gap: 5px; }
+      .mini-creative-right { flex: 1; display: flex; flex-direction: column; gap: 5px; }
+      .mini-creative-bar { height: 5px; width: 100%; background: var(--d4); border-radius: 1px; position: relative; }
+      .mini-creative-bar-fill { position: absolute; left: 0; top: 0; height: 100%; width: 65%; background: var(--g6); }
+
+      .tmpl-desc {
+        font-size: 11.5px;
+        color: var(--g5);
+        line-height: 1.5;
+        margin-bottom: 24px;
+        flex-grow: 1;
+      }
+
+      .tmpl-footer {
+        border-top: 1px solid var(--d4);
+        padding-top: 14px;
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        font-size: 11px;
+        font-weight: 700;
+        color: var(--g4);
+      }
+      .tmpl-card.active .tmpl-footer { color: var(--ann); }
+      .tmpl-card.active-alt .tmpl-footer { color: #38BDF8; }
+      .tmpl-card.disabled .tmpl-footer { color: var(--g6); }
+      .tmpl-arrow { font-size: 13px; }
+
+      /* ─── Legend / Annotations ───────────────────────────────── */
+      .legend {
+        background: var(--g1);
+        padding: 32px 40px;
+      }
+      .legend-title {
+        font-size: 10px; font-weight: 700; letter-spacing: 0.12em;
+        text-transform: uppercase; color: var(--g6); margin-bottom: 20px;
+      }
+      .legend-grid {
+        display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+        gap: 12px;
+      }
+      .legend-item {
+        background: var(--g0); border: 1px solid var(--g3);
+        border-radius: var(--radius); padding: 10px 14px;
+      }
+      .legend-item .l-lbl {
+        font-size: 9px; font-weight: 700; text-transform: uppercase;
+        letter-spacing: 0.1em; color: var(--ann); margin-bottom: 4px;
+      }
+      .legend-item .l-val { font-size: 11px; color: var(--g7); line-height: 1.5; }
+    </style>
+  </head>
+  <body>
+
+  <!-- ════════════ CANVAS ════════════ -->
+  <div class="canvas">
+
+    <!-- ── Wireframe toolbar ── -->
+    <div class="wf-toolbar">
+      <div class="wf-toolbar-left">
+        <div class="wf-dots">
+          <div class="wf-dot red"></div>
+          <div class="wf-dot yellow"></div>
+          <div class="wf-dot green"></div>
+        </div>
+        <span class="wf-title">NextCV — Pilih Template · Lo-Fi Wireframe</span>
+      </div>
+      <div class="wf-badge">Lo-Fi · Grayscale</div>
+      <span class="wf-zoom">100%</span>
+    </div>
+
+    <!-- ── Navigation Header Bar ── -->
+    <header class="nav-bar">
+      <div class="inner" style="display:flex; align-items:center; justify-content:space-between; width:100%;">
+        <a href="wireframe.html" class="nav-left">
+          <div class="back-btn">&larr;</div>
+          <span>Kembali ke Home</span>
+        </a>
+        <span class="wf-logo-text">NextCV</span>
+      </div>
+    </header>
+
+    <!-- ══════════════════════════════════════════════════════════
+        MAIN CONTENT — CHOOSE TEMPLATE
+    ══════════════════════════════════════════════════════════ -->
+    <section class="wf-section">
+      <span class="sec-label">01 · Template Chooser</span>
+      
+      <div class="inner">
+        <!-- Title Block -->
+        <div class="title-block">
+          <div class="step-pill">
+            <div class="step-pill-dot"></div>
+            <span class="step-pill-txt">Langkah Pertama</span>
+          </div>
+          <h1 class="wf-h1">Pilih Gaya Template CV Anda</h1>
+          <p class="sub-paragraph">Pilih gaya template untuk memulai. Semua data yang Anda masukkan dapat ditransfer ke template lain nantinya saat tersedia.</p>
+        </div>
+
+        <!-- Cards Grid -->
+        <div class="grid-3col">
+
+          <!-- Card 1: Layout 01 -->
+          <a href="wireframe_builder.html?template=harvard" class="tmpl-card">
+            <div>
+              <div class="tmpl-card-header">
+                <div class="tmpl-num">01</div>
+                <span class="tmpl-badge">ATS-Friendly</span>
+              </div>
+              
+              <!-- Miniature layout mockup -->
+              <div class="mini-preview"></div>
+
+              <h3 class="wf-h3">Layout 01</h3>
+              <p class="tmpl-desc">Template satu kolom klasik berbasis font serif. Sangat ramah penyaringan sistem ATS dan disukai oleh banyak rekruter.</p>
+            </div>
+            <div class="tmpl-footer">
+              <span>Gunakan Template Ini</span>
+              <span class="tmpl-arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <!-- Card 2: Layout 02 -->
+          <a href="wireframe_builder.html?template=modern" class="tmpl-card">
+            <div>
+              <div class="tmpl-card-header">
+                <div class="tmpl-num">02</div>
+                <span class="tmpl-badge">Dengan Foto</span>
+              </div>
+
+              <!-- Miniature layout mockup -->
+              <div class="mini-preview"></div>
+
+              <h3 class="wf-h3">Layout 02</h3>
+              <p class="tmpl-desc">Layout modern dengan header dua kolom — foto profil di kiri, nama & kontak di kanan. Judul seksi berwarna elegan. Cocok untuk melamar di perusahaan kreatif.</p>
+            </div>
+            <div class="tmpl-footer">
+              <span>Gunakan Template Ini</span>
+              <span class="tmpl-arrow">&rarr;</span>
+            </div>
+          </a>
+
+          <!-- Card 3: Layout 03 -->
+          <a href="wireframe_builder.html?template=layout03" class="tmpl-card">
+            <div>
+              <div class="tmpl-card-header">
+                <div class="tmpl-num">03</div>
+                <span class="tmpl-badge">Dua Kolom</span>
+              </div>
+
+              <!-- Miniature layout mockup -->
+              <div class="mini-preview"></div>
+
+              <h3 class="wf-h3">Layout 03</h3>
+              <p class="tmpl-desc">Desain dua kolom dengan sidebar kontak kiri, grafik level skill visual, dan ruang untuk portofolio singkat. Direkomendasikan untuk Desainer dan Developer.</p>
+            </div>
+            <div class="tmpl-footer">
+              <span>Gunakan Template Ini</span>
+              <span class="tmpl-arrow">&rarr;</span>
+            </div>
+          </a>
+        </div>
+      </div>
+
+    </section>
+
+    <!-- ════════════════════════════════════════════════════════
+        LEGEND / ANNOTATIONS
+    ════════════════════════════════════════════════════════ -->
+    <div class="legend">
+      <div class="legend-title">📐 Wireframe Legend &amp; Annotation</div>
+      <div class="legend-grid">
+        <div class="legend-item">
+          <div class="l-lbl">Struktur Grid</div>
+          <div class="l-val">Tiga kolom horizontal dengan layout card flexbox responsif.</div>
+        </div>
+        <div class="legend-item">
+          <div class="l-lbl">Layout Miniature Preview</div>
+          <div class="l-val">Membantu visualisasi bentuk fisik CV secara langsung.</div>
+        </div>
+        <div class="legend-item">
+          <div class="l-lbl">Interactive Hover</div>
+          <div class="l-val">Hover efek border abu-abu terang pada card.</div>
+        </div>
+        <div class="legend-item">
+          <div class="l-lbl">Garis Putus-Putus</div>
+          <div class="l-val">Pemisah antar region dokumentasi (Legend & Main Section).</div>
+        </div>
+        <div class="legend-item">
+          <div class="l-lbl">Navigation Actions</div>
+          <div class="l-val">Klik "Kembali ke Home" merutekan ke wireframe.html, Klik "Gunakan Template Ini" ke wireframe_builder.html.</div>
+        </div>
+        <div class="legend-item">
+          <div class="l-lbl">Pill Badges</div>
+          <div class="l-val">Menampilkan identitas unik tiap template (ATS-Friendly, Dengan Foto, Dua Kolom).</div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /canvas -->
+  </body>
+  </html>
