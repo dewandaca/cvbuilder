@@ -795,7 +795,7 @@ export default function CvBuilder() {
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
   const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
-  const [isExitModalOpen, setIsExitModalOpen] = useState(false);
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false); // kept for type safety, no longer used
 
   // --- Import CV State ---
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -831,7 +831,7 @@ export default function CvBuilder() {
   });
 
   useEffect(() => {
-    const saved = sessionStorage.getItem('cv-data');
+    const saved = localStorage.getItem('cv-data');
     if (saved) {
       try {
         const data = JSON.parse(saved);
@@ -887,10 +887,10 @@ export default function CvBuilder() {
     [personalInfo, educations, experiences, projects, achievements, customSections, skills, orderedSectionOrder, sectionTitles, selectedTemplate, hasSelectedTemplate, profilePhoto]
   );
 
-  // Auto-save to sessionStorage whenever data changes (only after hydration)
+  // Auto-save to localStorage whenever data changes (only after hydration)
   useEffect(() => {
     if (!isHydrated) return;
-    sessionStorage.setItem('cv-data', JSON.stringify(fullData));
+    localStorage.setItem('cv-data', JSON.stringify(fullData));
   }, [fullData, isHydrated]);
 
   const hasAnyData = () => {
@@ -921,16 +921,12 @@ export default function CvBuilder() {
 
   const handleBackClick = (e: React.MouseEvent) => {
     e.preventDefault();
-    if (hasAnyData()) {
-      setIsExitModalOpen(true);
-    } else {
-      router.push('/');
-    }
+    // Data is auto-saved to localStorage — navigate directly without any prompt
+    router.push('/');
   };
 
   const handleConfirmExit = () => {
-    // Clear both storages to start fresh
-    sessionStorage.removeItem('cv-data');
+    // Clear localStorage to start fresh
     localStorage.removeItem('cv-data');
     
     // Reset React state
@@ -2487,37 +2483,7 @@ export default function CvBuilder() {
         </div>
       )}
 
-      {/* Exit Confirmation Modal */}
-      {isExitModalOpen && (
-        <div className="fixed inset-0 z-50 bg-slate-950/60 backdrop-blur-sm flex items-center justify-center p-4 transition-all duration-300">
-          <div className="w-full max-w-md bg-white rounded-2xl shadow-2xl border border-slate-200 overflow-hidden transform transition-all scale-100 animate-in fade-in zoom-in-95 duration-200">
-            <div className="p-6 text-center">
-              <div className="w-16 h-16 bg-rose-50 text-rose-500 rounded-full flex items-center justify-center mx-auto mb-4 animate-bounce">
-                <AlertCircle size={32} />
-              </div>
-              <h3 className="text-xl font-extrabold text-slate-800 font-heading mb-2">CV Anda Belum Tersimpan!</h3>
-              <p className="text-sm text-slate-500 leading-relaxed mb-6">
-                Jika Anda keluar ke halaman utama, draf CV Anda akan terhapus sepenuhnya dan tidak tersimpan di browser. Apakah Anda yakin ingin keluar?
-              </p>
-              
-              <div className="flex gap-3">
-                <button
-                  onClick={() => setIsExitModalOpen(false)}
-                  className="flex-1 py-3 border border-slate-200 text-slate-600 rounded-xl text-sm font-bold hover:bg-slate-50 transition active:scale-[0.98]"
-                >
-                  Batal
-                </button>
-                <button
-                  onClick={handleConfirmExit}
-                  className="flex-1 py-3 bg-gradient-to-r from-rose-500 to-red-600 hover:from-rose-600 hover:to-red-700 text-white rounded-xl text-sm font-bold transition shadow-lg shadow-rose-500/20 active:scale-[0.98]"
-                >
-                  Ya, Keluar
-                </button>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
+
     </div>
   );
 }
