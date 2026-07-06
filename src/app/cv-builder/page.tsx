@@ -521,6 +521,14 @@ const HarvardCVLivePreview = ({ data }: { data: CVData }) => {
   );
 };
 
+const NAVY = '#1a3c6e';
+
+const ModernSectionTitle = ({ children }: { children: string }) => (
+  <h3 style={{ color: NAVY, borderBottom: `1.5px solid ${NAVY}`, paddingBottom: 2, marginTop: 10, marginBottom: 4, fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
+    {children}
+  </h3>
+);
+
 // --- MODERN CV LIVE PREVIEW ---
 const ModernCVLivePreview = ({ data }: { data: CVData & { profilePhoto?: string } }) => {
   const containerRef = useRef<HTMLDivElement>(null);
@@ -561,14 +569,6 @@ const ModernCVLivePreview = ({ data }: { data: CVData & { profilePhoto?: string 
     return section.title.trim() || section.content.trim();
   });
   const customSectionsById = new Map(customSectionsWithContent.map((section) => [section.id, section]));
-
-  const NAVY = '#1a3c6e';
-
-  const ModernSectionTitle = ({ children }: { children: string }) => (
-    <h3 style={{ color: NAVY, borderBottom: `1.5px solid ${NAVY}`, paddingBottom: 2, marginTop: 10, marginBottom: 4, fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-      {children}
-    </h3>
-  );
 
   const sectionContent: Record<BaseSectionKey, React.ReactNode> = {
     summary: data.personalInfo.summary.trim()
@@ -788,6 +788,48 @@ const createEmptyCustomSection = (): Omit<CustomSection, 'id'> => ({
   mode: 'simple',
   items: [],
 });
+
+const SectionHeader = ({ title, icon: Icon }: { title: string; icon: React.ElementType }) => (
+  <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b-2 border-slate-100">
+    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 text-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm">
+      <Icon size={20} className="sm:hidden" />
+      <Icon size={24} className="hidden sm:block" />
+    </div>
+    <div>
+      <h2 className="text-xl sm:text-2xl font-bold text-slate-800">{title}</h2>
+      <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Complete this section for better results</p>
+    </div>
+  </div>
+);
+
+// Magic Button Style with enhanced animation
+const MagicButton = ({
+  onClick,
+  loading,
+  label,
+  variant = 'enhance'
+}: {
+  onClick: () => void;
+  loading: boolean;
+  label: string;
+  variant?: 'enhance' | 'translate';
+}) => (
+  <button 
+    onClick={onClick}
+    disabled={loading}
+    className={`group relative inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-2 min-h-10 text-sm sm:text-xs font-bold text-white transition-all duration-300 w-full sm:w-auto rounded-full shadow-lg hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hover:scale-105 active:scale-95 ${
+      variant === 'enhance'
+        ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 hover:from-purple-600 hover:via-pink-600 hover:to-rose-600 hover:shadow-purple-500/20'
+        : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 hover:from-blue-600 hover:via-indigo-600 hover:to-cyan-600 hover:shadow-blue-500/20'
+    }`}
+  >
+    <span className="absolute inset-0 bg-white/20 rounded-full blur-xl group-hover:blur-2xl transition opacity-0 group-hover:opacity-50"></span>
+    <span className="relative flex items-center gap-1 z-10">
+      {loading ? <Loader2 className="animate-spin" size={14}/> : <Sparkles size={14} className="group-hover:rotate-12 group-hover:scale-110 transition"/>}
+      {label}
+    </span>
+  </button>
+);
 
 export default function CvBuilder() {
   const router = useRouter();
@@ -1411,49 +1453,6 @@ export default function CvBuilder() {
   };
 
 
-  // --- UI COMPONENTS ---
-  const SectionHeader = ({ title, icon: Icon }: { title: string; icon: React.ElementType }) => (
-    <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b-2 border-slate-100">
-      <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 text-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm">
-        <Icon size={20} className="sm:hidden" />
-        <Icon size={24} className="hidden sm:block" />
-      </div>
-      <div>
-        <h2 className="text-xl sm:text-2xl font-bold text-slate-800">{title}</h2>
-        <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Complete this section for better results</p>
-      </div>
-    </div>
-  );
-
-  // Magic Button Style with enhanced animation
-  const MagicButton = ({
-    onClick,
-    loading,
-    label,
-    variant = 'enhance'
-  }: {
-    onClick: () => void;
-    loading: boolean;
-    label: string;
-    variant?: 'enhance' | 'translate';
-  }) => (
-    <button 
-      onClick={onClick}
-      disabled={loading}
-      className={`group relative inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-2 min-h-10 text-sm sm:text-xs font-bold text-white transition-all duration-300 w-full sm:w-auto rounded-full shadow-lg hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hover:scale-105 active:scale-95 ${
-        variant === 'enhance'
-          ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 hover:from-purple-600 hover:via-pink-600 hover:to-rose-600 hover:shadow-purple-500/20'
-          : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 hover:from-blue-600 hover:via-indigo-600 hover:to-cyan-600 hover:shadow-blue-500/20'
-      }`}
-    >
-      <span className="absolute inset-0 bg-white/20 rounded-full blur-xl group-hover:blur-2xl transition opacity-0 group-hover:opacity-50"></span>
-      <span className="relative flex items-center gap-1 z-10">
-        {loading ? <Loader2 className="animate-spin" size={14}/> : <Sparkles size={14} className="group-hover:rotate-12 group-hover:scale-110 transition"/>}
-        {label}
-      </span>
-    </button>
-  );
-
   // Enhanced Input Classes
   const inputClass = "w-full px-4 py-3 sm:py-2.5 bg-white border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all hover:border-slate-300 focus:bg-white shadow-sm";
   const labelClass = "block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-0.5";
@@ -1462,9 +1461,9 @@ export default function CvBuilder() {
     if (!text) return '';
     return text
       .split('\n')
-      .map((line) => {
-        const trimmed = line.trim();
-        if (!trimmed) return '';
+      .map((line) => line.trim())
+      .filter((line) => line.length > 0)
+      .map((trimmed) => {
         if (/^(•|-|\*|\d+\.)\s*/.test(trimmed)) {
           return trimmed.replace(/^(•|-|\*|\d+\.)\s*/, '• ');
         }

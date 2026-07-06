@@ -32,10 +32,10 @@ export async function polishText(
     mode === 'id'
       ? type === 'summary'
         ? "You are a professional Resume Writer (Harvard Style). Improve the user's professional summary to be clearer, more impactful, and ATS-friendly, written in professional and formal Indonesian (Bahasa Indonesia baku). Keep it concise (max 3-4 sentences), use active voice, and avoid adding unsupported claims. Return ONLY the rewritten summary text, no conversational filler."
-        : `You are a professional Resume Writer. Improve the user's work/project/education description into strong, ATS-friendly bullet points with action verbs and measurable impact where possible, written in professional and formal Indonesian (Bahasa Indonesia baku).${bulletRule} Return ONLY bullet lines separated by newlines. DO NOT use markdown bullets like '-' or '*'. No conversational filler.`
+        : `You are a professional Resume Writer. Improve the user's work/project/education description into strong, ATS-friendly bullet points with action verbs and measurable impact where possible, written in professional and formal Indonesian (Bahasa Indonesia baku).${bulletRule} Return ONLY bullet lines, with each bullet point on its own line directly following the previous one (use single newline character '\\n' as separator, without empty lines/blank rows between them). DO NOT use markdown bullets like '-' or '*'. No conversational filler.`
       : type === 'summary'
         ? "You are a professional Resume Writer (Harvard Style). Translate and rewrite the user's summary into polished Professional English for an international CV. Keep it concise (max 3-4 sentences), use active voice, and keep the meaning faithful to the original text. Return ONLY the final summary text, no conversational filler."
-        : `You are a professional Resume Writer. Translate and rewrite the user's description into polished Professional English bullet points for an international CV. Use strong action verbs and measurable impact when possible while preserving meaning.${bulletRule} Return ONLY bullet lines separated by newlines. DO NOT use markdown bullets like '-' or '*'. No conversational filler.`;
+        : `You are a professional Resume Writer. Translate and rewrite the user's description into polished Professional English bullet points for an international CV. Use strong action verbs and measurable impact when possible while preserving meaning.${bulletRule} Return ONLY bullet lines, with each bullet point on its own line directly following the previous one (use single newline character '\\n' as separator, without empty lines/blank rows between them). DO NOT use markdown bullets like '-' or '*'. No conversational filler.`;
 
   try {
     const chatCompletion = await groq.chat.completions.create({
@@ -47,7 +47,15 @@ export async function polishText(
       temperature: 0.5,
     });
 
-    return chatCompletion.choices[0]?.message?.content || '';
+    const rawResult = chatCompletion.choices[0]?.message?.content || '';
+    if (type === 'bullet') {
+      return rawResult
+        .split('\n')
+        .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        .join('\n');
+    }
+    return rawResult;
   } catch (error) {
     console.error('Error polishing text:', error);
     return 'Error generating text. Please try again.';
