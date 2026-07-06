@@ -789,90 +789,6 @@ const createEmptyCustomSection = (): Omit<CustomSection, 'id'> => ({
   items: [],
 });
 
-/**
- * ensureAllLinesHaveBullets: Formats a multi-line string so that any line
- * with content starts with '• '.
- */
-const ensureAllLinesHaveBullets = (text: string): string => {
-  if (!text) return '';
-  const lines = text.split('\n');
-  return lines.map((line) => {
-    const trimmed = line.trim();
-    if (trimmed === '') return line;
-    if (line.startsWith('• ')) return line;
-    if (/^(•|-|\*)\s*/.test(line)) {
-      return line.replace(/^(•|-|\*)\s*/, '• ');
-    }
-    return '• ' + line;
-  }).join('\n');
-};
-
-/**
- * handleBulletChange: Formats manual typing to ensure it conforms to the bullet list style.
- */
-const handleBulletChange = (
-  e: React.ChangeEvent<HTMLTextAreaElement>,
-  setter: (val: string) => void
-) => {
-  const formatted = ensureAllLinesHaveBullets(e.target.value);
-  setter(formatted);
-};
-
-/**
- * handleBulletFocus: Pre-fills an empty bullet textarea with '• ' upon focus.
- */
-const handleBulletFocus = (
-  e: React.FocusEvent<HTMLTextAreaElement>,
-  value: string,
-  setter: (val: string) => void
-) => {
-  if (!value || value.trim() === '') {
-    setter('• ');
-    const ta = e.currentTarget;
-    requestAnimationFrame(() => {
-      ta.selectionStart = ta.selectionEnd = 2;
-    });
-  }
-};
-
-/**
- * handleBulletBlur: Removes solitary bullets when user clicks away from an empty input.
- */
-const handleBulletBlur = (
-  e: React.FocusEvent<HTMLTextAreaElement>,
-  value: string,
-  setter: (val: string) => void
-) => {
-  if (value === '• ' || value === '•') {
-    setter('');
-  }
-};
-
-/**
- * handleBulletKeyDown: Intercepts Enter in bullet-style textareas and inserts
- * a newline + bullet prefix so lines don't look crammed together.
- * The raw value (including '• ') is stored in state, but parseBulletItemsPreview
- * already strips those characters before rendering the live preview and PDF.
- */
-const handleBulletKeyDown = (
-  e: React.KeyboardEvent<HTMLTextAreaElement>,
-  value: string,
-  setter: (val: string) => void
-) => {
-  if (e.key !== 'Enter') return;
-  e.preventDefault();
-  const ta = e.currentTarget;
-  const start = ta.selectionStart ?? value.length;
-  const end = ta.selectionEnd ?? value.length;
-  const insert = '\n• ';
-  const newValue = value.slice(0, start) + insert + value.slice(end);
-  setter(newValue);
-  // Restore cursor position after React re-renders
-  requestAnimationFrame(() => {
-    ta.selectionStart = ta.selectionEnd = start + insert.length;
-  });
-};
-
 export default function CvBuilder() {
   const router = useRouter();
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
@@ -1225,11 +1141,11 @@ export default function CvBuilder() {
     if (!text) return alert("Isi teks dulu sebelum minta bantuan AI!");
     setLoadingAI(idStr);
     try {
-      const result = await polishTextApi(text, type, mode);
-      if (setterCallback) {
-        const finalValue = type === 'bullet' ? ensureAllLinesHaveBullets(result) : result;
-        setterCallback(finalValue);
+      let result = await polishTextApi(text, type, mode);
+      if (type === 'bullet' && setterCallback) {
+        result = ensureBullets(result);
       }
+      if (setterCallback) setterCallback(result);
     } catch { alert("AI Error."); } finally { setLoadingAI(null); }
   };
 
@@ -1541,6 +1457,79 @@ export default function CvBuilder() {
   // Enhanced Input Classes
   const inputClass = "w-full px-4 py-3 sm:py-2.5 bg-white border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all hover:border-slate-300 focus:bg-white shadow-sm";
   const labelClass = "block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-0.5";
+
+  const ensureBullets = (text: string): string => {
+    if (!text) return '';
+    return text
+      .split('\n')
+      .map((line) => {
+        const trimmed = line.trim();
+        if (!trimmed) return '';
+        if (/^(•|-|\*|\d+\.)\s*/.test(trimmed)) {
+          return trimmed.replace(/^(•|-|\*|\d+\.)\s*/, '• ');
+        }
+        return '• ' + trimmed;
+      })
+      .join('\n');
+  };
+
+  const handleBulletFocus = (
+    e: React.FocusEvent<HTMLTextAreaElement>,
+    value: string,
+    setter: (val: string) => void
+  ) => {
+    if (!value.trim()) {
+      setter('• ');
+    }
+  };
+
+  const handleBulletBlur = (
+    e: React.FocusEvent<HTMLTextAreaElement>,
+    value: string,
+    setter: (val: string) => void
+  ) => {
+    if (value.trim() === '•') {
+      setter('');
+    } else if (value.trim()) {
+      setter(ensureBullets(value));
+    }
+  };
+
+  const handleBulletChange = (
+    e: React.ChangeEvent<HTMLTextAreaElement>,
+    setter: (val: string) => void
+  ) => {
+    let val = e.target.value;
+    if (val && !/^(•|-|\*|\d+\.)/.test(val.trim())) {
+      val = '• ' + val.trimStart();
+    }
+    setter(val);
+  };
+
+  /**
+   * handleBulletKeyDown: Intercepts Enter in bullet-style textareas and inserts
+   * a newline + bullet prefix so lines don't look crammed together.
+   * The raw value (including '• ') is stored in state, but parseBulletItemsPreview
+   * already strips those characters before rendering the live preview and PDF.
+   */
+  const handleBulletKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+    value: string,
+    setter: (val: string) => void
+  ) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const ta = e.currentTarget;
+    const start = ta.selectionStart ?? value.length;
+    const end = ta.selectionEnd ?? value.length;
+    const insert = '\n• ';
+    const newValue = value.slice(0, start) + insert + value.slice(end);
+    setter(newValue);
+    // Restore cursor position after React re-renders
+    requestAnimationFrame(() => {
+      ta.selectionStart = ta.selectionEnd = start + insert.length;
+    });
+  };
 
   useEffect(() => {
     if (!isMobilePreviewOpen) return;
@@ -1990,10 +1979,10 @@ export default function CvBuilder() {
                           className={inputClass}
                           placeholder="- Indeks Prestasi..., - Proyek akhir tentang..., - Organisasi kampus..."
                           value={edu.description}
-                          onChange={e => handleBulletChange(e, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
-                          onKeyDown={e => handleBulletKeyDown(e, edu.description, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
                           onFocus={e => handleBulletFocus(e, edu.description, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
                           onBlur={e => handleBulletBlur(e, edu.description, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
+                          onChange={e => handleBulletChange(e, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
+                          onKeyDown={e => handleBulletKeyDown(e, edu.description, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
                         />
                       </div>
                     </div>
@@ -2065,10 +2054,10 @@ export default function CvBuilder() {
                           className={inputClass}
                           placeholder="- Merancang strategi pemasaran..., - Berhasil meningkatkan 20%..."
                           value={exp.description}
-                          onChange={e => handleBulletChange(e, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))}
-                          onKeyDown={e => handleBulletKeyDown(e, exp.description, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))}
                           onFocus={e => handleBulletFocus(e, exp.description, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))}
                           onBlur={e => handleBulletBlur(e, exp.description, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))}
+                          onChange={e => handleBulletChange(e, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))}
+                          onKeyDown={e => handleBulletKeyDown(e, exp.description, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))}
                         />
                       </div>
                     </div>
@@ -2122,7 +2111,7 @@ export default function CvBuilder() {
                               variant="enhance"
                             />
                             <MagicButton
-                              onClick={() => handlePolish('bullet', 'en', proj.description, `proj-${proj.id}-en`, (val) => updateItem(proj.id, 'description', ensureAllLinesHaveBullets(val), projects, setProjects))}
+                              onClick={() => handlePolish('bullet', 'en', proj.description, `proj-${proj.id}-en`, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
                               loading={loadingAI === `proj-${proj.id}-en`}
                               label="Polish EN"
                               variant="translate"
@@ -2134,10 +2123,10 @@ export default function CvBuilder() {
                           className={inputClass} 
                           placeholder="Jelaskan detail proyek, teknologi, dan hasil akhir..." 
                           value={proj.description} 
-                          onChange={e => handleBulletChange(e, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
-                          onKeyDown={e => handleBulletKeyDown(e, proj.description, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
                           onFocus={e => handleBulletFocus(e, proj.description, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
                           onBlur={e => handleBulletBlur(e, proj.description, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
+                          onChange={e => handleBulletChange(e, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
+                          onKeyDown={e => handleBulletKeyDown(e, proj.description, (val) => updateItem(proj.id, 'description', val, projects, setProjects))}
                         />
                        </div>
                      </div>
@@ -2394,10 +2383,10 @@ export default function CvBuilder() {
                               className={inputClass}
                               placeholder="- Menangani koordinasi relawan..."
                               value={item.description}
-                              onChange={(e) => handleBulletChange(e, (val) => updateCustomSectionItem(section.id, item.id, 'description', val))}
-                              onKeyDown={(e) => handleBulletKeyDown(e, item.description, (val) => updateCustomSectionItem(section.id, item.id, 'description', val))}
                               onFocus={(e) => handleBulletFocus(e, item.description, (val) => updateCustomSectionItem(section.id, item.id, 'description', val))}
                               onBlur={(e) => handleBulletBlur(e, item.description, (val) => updateCustomSectionItem(section.id, item.id, 'description', val))}
+                              onChange={(e) => handleBulletChange(e, (val) => updateCustomSectionItem(section.id, item.id, 'description', val))}
+                              onKeyDown={(e) => handleBulletKeyDown(e, item.description, (val) => updateCustomSectionItem(section.id, item.id, 'description', val))}
                             />
                           </div>
                         </div>
@@ -2411,10 +2400,10 @@ export default function CvBuilder() {
                         className={inputClass}
                         placeholder={"- English (Fluent)\n- French (Basic)"}
                         value={section.content}
-                        onChange={(e) => handleBulletChange(e, (val) => updateCustomSection(section.id, 'content', val))}
-                        onKeyDown={(e) => handleBulletKeyDown(e, section.content, (val) => updateCustomSection(section.id, 'content', val))}
                         onFocus={(e) => handleBulletFocus(e, section.content, (val) => updateCustomSection(section.id, 'content', val))}
                         onBlur={(e) => handleBulletBlur(e, section.content, (val) => updateCustomSection(section.id, 'content', val))}
+                        onChange={(e) => handleBulletChange(e, (val) => updateCustomSection(section.id, 'content', val))}
+                        onKeyDown={(e) => handleBulletKeyDown(e, section.content, (val) => updateCustomSection(section.id, 'content', val))}
                       />
                     </div>
                   )}
