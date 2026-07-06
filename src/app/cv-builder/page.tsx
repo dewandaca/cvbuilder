@@ -1455,6 +1455,31 @@ export default function CvBuilder() {
   const inputClass = "w-full px-4 py-3 sm:py-2.5 bg-white border border-slate-200 rounded-xl text-base sm:text-sm font-medium text-slate-800 placeholder:text-slate-400 focus:ring-2 focus:ring-blue-500/30 focus:border-blue-500 outline-none transition-all hover:border-slate-300 focus:bg-white shadow-sm";
   const labelClass = "block text-xs font-bold text-slate-500 uppercase tracking-wider mb-2 ml-0.5";
 
+  /**
+   * handleBulletKeyDown: Intercepts Enter in bullet-style textareas and inserts
+   * a newline + bullet prefix so lines don't look crammed together.
+   * The raw value (including '• ') is stored in state, but parseBulletItemsPreview
+   * already strips those characters before rendering the live preview and PDF.
+   */
+  const handleBulletKeyDown = (
+    e: React.KeyboardEvent<HTMLTextAreaElement>,
+    value: string,
+    setter: (val: string) => void
+  ) => {
+    if (e.key !== 'Enter') return;
+    e.preventDefault();
+    const ta = e.currentTarget;
+    const start = ta.selectionStart ?? value.length;
+    const end = ta.selectionEnd ?? value.length;
+    const insert = '\n• ';
+    const newValue = value.slice(0, start) + insert + value.slice(end);
+    setter(newValue);
+    // Restore cursor position after React re-renders
+    requestAnimationFrame(() => {
+      ta.selectionStart = ta.selectionEnd = start + insert.length;
+    });
+  };
+
   useEffect(() => {
     if (!isMobilePreviewOpen) return;
 
@@ -1898,7 +1923,7 @@ export default function CvBuilder() {
                             />
                           </div>
                         </div>
-                        <textarea rows={4} className={inputClass} placeholder="- Indeks Prestasi..., - Proyek akhir tentang..., - Organisasi kampus..." value={edu.description} onChange={e => updateItem(edu.id, 'description', e.target.value, educations, setEducations)} />
+                        <textarea rows={4} className={inputClass} placeholder="- Indeks Prestasi..., - Proyek akhir tentang..., - Organisasi kampus..." value={edu.description} onChange={e => updateItem(edu.id, 'description', e.target.value, educations, setEducations)} onKeyDown={e => handleBulletKeyDown(e, edu.description, (val) => updateItem(edu.id, 'description', val, educations, setEducations))} />
                       </div>
                     </div>
                   ))}
@@ -1964,7 +1989,7 @@ export default function CvBuilder() {
                             />
                           </div>
                         </div>
-                        <textarea rows={5} className={inputClass} placeholder="- Merancang strategi pemasaran..., - Berhasil meningkatkan 20%..." value={exp.description} onChange={e => updateItem(exp.id, 'description', e.target.value, experiences, setExperiences)} />
+                        <textarea rows={5} className={inputClass} placeholder="- Merancang strategi pemasaran..., - Berhasil meningkatkan 20%..." value={exp.description} onChange={e => updateItem(exp.id, 'description', e.target.value, experiences, setExperiences)} onKeyDown={e => handleBulletKeyDown(e, exp.description, (val) => updateItem(exp.id, 'description', val, experiences, setExperiences))} />
                       </div>
                     </div>
                   ))}
@@ -2024,7 +2049,7 @@ export default function CvBuilder() {
                             />
                           </div>
                         </div>
-                        <textarea rows={3} className={inputClass} placeholder="Jelaskan detail proyek, teknologi, dan hasil akhir..." value={proj.description} onChange={e => updateItem(proj.id, 'description', e.target.value, projects, setProjects)} />
+                        <textarea rows={3} className={inputClass} placeholder="Jelaskan detail proyek, teknologi, dan hasil akhir..." value={proj.description} onChange={e => updateItem(proj.id, 'description', e.target.value, projects, setProjects)} onKeyDown={e => handleBulletKeyDown(e, proj.description, (val) => updateItem(proj.id, 'description', val, projects, setProjects))} />
                        </div>
                      </div>
                   ))}
@@ -2281,6 +2306,7 @@ export default function CvBuilder() {
                               placeholder="- Menangani koordinasi relawan..."
                               value={item.description}
                               onChange={(e) => updateCustomSectionItem(section.id, item.id, 'description', e.target.value)}
+                              onKeyDown={(e) => handleBulletKeyDown(e, item.description, (val) => updateCustomSectionItem(section.id, item.id, 'description', val))}
                             />
                           </div>
                         </div>
@@ -2295,6 +2321,7 @@ export default function CvBuilder() {
                         placeholder={"- English (Fluent)\n- French (Basic)"}
                         value={section.content}
                         onChange={(e) => updateCustomSection(section.id, 'content', e.target.value)}
+                        onKeyDown={(e) => handleBulletKeyDown(e, section.content, (val) => updateCustomSection(section.id, 'content', val))}
                       />
                     </div>
                   )}
