@@ -21,11 +21,8 @@ export async function polishText(
       .map((line) => line.replace(/^(•|-|\*)\s*/, '').trim())
       .filter((line) => line.length > 0).length;
 
-    if (inputBulletsCount > 3) {
-      bulletRule = ` The user has provided ${inputBulletsCount} bullet points. You are allowed to generate more than 3 bullet points (up to ${inputBulletsCount}) to adjust to and preserve the user's details, but do not exceed ${inputBulletsCount} bullet points.`;
-    } else {
-      bulletRule = ` The user has provided 3 or fewer bullet points. You MUST limit the output to a maximum of 3 bullet points.`;
-    }
+    const count = inputBulletsCount > 0 ? inputBulletsCount : 1;
+    bulletRule = ` The user has provided exactly ${count} bullet points. You MUST process (rewrite/translate) EVERY SINGLE one of the ${count} bullet points individually and return exactly ${count} bullet points (one for each input). Do not skip any bullet points or leave any in their original language.`;
   }
 
   const systemPrompt =
@@ -35,7 +32,7 @@ export async function polishText(
         : `You are a professional Resume Writer. Improve the user's work/project/education description into strong, ATS-friendly bullet points with action verbs and measurable impact where possible, written in professional and formal Indonesian (Bahasa Indonesia baku).${bulletRule} Return ONLY bullet lines separated by newlines. DO NOT use markdown bullets like '-' or '*'. No conversational filler.`
       : type === 'summary'
         ? "You are a professional Resume Writer (Harvard Style). Translate and rewrite the user's summary into polished Professional English for an international CV. Keep it concise (max 3-4 sentences), use active voice, and keep the meaning faithful to the original text. Return ONLY the final summary text, no conversational filler."
-        : `You are a professional Resume Writer. Translate and rewrite the user's description into polished Professional English bullet points for an international CV. Use strong action verbs and measurable impact when possible while preserving meaning.${bulletRule} Return ONLY bullet lines separated by newlines. DO NOT use markdown bullets like '-' or '*'. No conversational filler.`;
+        : `You are a professional Resume Writer. Translate and rewrite the user's description into polished Professional English bullet points for an international CV. Use strong action verbs and measurable impact when possible while preserving meaning. Every single line of the output must be translated to English.${bulletRule} Return ONLY bullet lines separated by newlines. DO NOT use markdown bullets like '-' or '*'. No conversational filler.`;
 
   try {
     const chatCompletion = await groq.chat.completions.create({
