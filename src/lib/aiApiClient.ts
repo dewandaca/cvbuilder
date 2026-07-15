@@ -30,7 +30,7 @@ export async function polishTextApi(
   type: 'summary' | 'bullet',
   mode: 'id' | 'en' = 'id',
 ): Promise<string> {
-  return requestApi<string>('/api/llama/polish-text', {
+  return requestApi<string>('/api/ai/polish-text', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -40,21 +40,21 @@ export async function polishTextApi(
 }
 
 export async function reviewCvApi<T>(formData: FormData): Promise<T | null> {
-  return requestApi<T | null>('/api/llama/review-cv', {
+  return requestApi<T | null>('/api/ai/review-cv', {
     method: 'POST',
     body: formData,
   });
 }
 
 export async function matchRoleApi<T>(formData: FormData): Promise<T | null> {
-  return requestApi<T | null>('/api/llama/match-role', {
+  return requestApi<T | null>('/api/ai/match-role', {
     method: 'POST',
     body: formData,
   });
 }
 
 export async function parseCvApi<T>(formData: FormData): Promise<T> {
-  return requestApi<T>('/api/llama/parse-cv', {
+  return requestApi<T>('/api/ai/parse-cv', {
     method: 'POST',
     body: formData,
   });
@@ -80,7 +80,7 @@ export async function chatInterviewApi(
   messages: InterviewMessagePayload[],
   context: InterviewChatContext,
 ): Promise<{ reply: string; shouldFinish: boolean }> {
-  return requestApi<{ reply: string; shouldFinish: boolean }>('/api/llama/chat-interview', {
+  return requestApi<{ reply: string; shouldFinish: boolean }>('/api/ai/chat-interview', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
@@ -93,7 +93,7 @@ export async function generateInterviewReportApi<T>(
   messages: InterviewMessagePayload[],
   context: InterviewReportContext,
 ): Promise<T | null> {
-  return requestApi<T | null>('/api/llama/interview-report', {
+  return requestApi<T | null>('/api/ai/interview-report', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

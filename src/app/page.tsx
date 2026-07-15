@@ -216,7 +216,7 @@ export default function Home() {
                 <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-brand-accent opacity-75" />
                 <span className="relative inline-flex rounded-full h-2 w-2 bg-brand-accent" />
               </span>
-              <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-widest">Ditenagai Llama 3.3 70B · 100% Gratis</span>
+              <span className="text-[11px] font-bold text-indigo-300 uppercase tracking-widest">Ditenagai GPT-OSS 120B · 100% Gratis</span>
             </div>
 
             <h1 data-reveal="fade-up" data-delay="200"
@@ -255,7 +255,7 @@ export default function Home() {
                 <span className="w-3 h-3 rounded-full bg-rose-500/80 inline-block" />
                 <span className="w-3 h-3 rounded-full bg-amber-500/80 inline-block" />
                 <span className="w-3 h-3 rounded-full bg-emerald-500/80 inline-block" />
-                <span className="text-[11px] font-mono text-slate-500 ml-2">Llama AI Editor Simulator</span>
+                <span className="text-[11px] font-mono text-slate-500 ml-2">GPT-OSS AI Editor Simulator</span>
               </div>
 
               {/* Simulation Screen Content */}

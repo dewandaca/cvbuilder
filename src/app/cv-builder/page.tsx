@@ -1,7 +1,7 @@
 'use client'
 
 import { useMemo, useState, useEffect, useRef } from 'react';
-import { polishTextApi } from '@/lib/llamaApiClient';
+import { polishTextApi } from '@/lib/aiApiClient';
 import { HarvardCV } from '@/components/HarvardCV';
 import { ModernCV } from '@/components/ModernCV';
 import { pdf } from '@react-pdf/renderer';
@@ -9,7 +9,7 @@ import {
   Plus, Trash2, Loader2, Save, ArrowLeft, ArrowRight,
   Briefcase, GraduationCap, Trophy, Code, FolderGit2, Sparkles, ArrowUp, ArrowDown, Eye, X, Upload, FileText, CheckCircle2, AlertCircle, ImageIcon, Camera
 } from 'lucide-react';
-import { parseCvApi } from '@/lib/llamaApiClient';
+import { parseCvApi } from '@/lib/aiApiClient';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 

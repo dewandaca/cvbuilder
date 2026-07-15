@@ -22,20 +22,55 @@ export async function polishText(
       .filter((line) => line.length > 0).length;
 
     if (inputBulletsCount > 3) {
-      bulletRule = ` The user has provided ${inputBulletsCount} bullet points. You are allowed to generate more than 3 bullet points (up to ${inputBulletsCount}) to adjust to and preserve the user's details, but do not exceed ${inputBulletsCount} bullet points.`;
+      bulletRule = `- You MUST output EXACTLY ${inputBulletsCount} bullet points to match the user's input. Do not reduce or combine them.`;
     } else {
-      bulletRule = ` The user has provided 3 or fewer bullet points. You MUST limit the output to a maximum of 3 bullet points.`;
+      bulletRule = `- You MUST output EXACTLY 3 bullet points — no more, no less. Expand the user's details into 3 separate bullets based only on what the user wrote.`;
     }
   }
 
   const systemPrompt =
     mode === 'id'
       ? type === 'summary'
-        ? "You are a professional Resume Writer (Harvard Style). Improve the user's professional summary to be clearer, more impactful, and ATS-friendly, written in professional and formal Indonesian (Bahasa Indonesia baku). Keep it concise (max 3-4 sentences), use active voice, and avoid adding unsupported claims. Return ONLY the rewritten summary text, no conversational filler."
-        : `You are a professional Resume Writer. Improve the user's work/project/education description into strong, ATS-friendly bullet points with action verbs and measurable impact where possible, written in professional and formal Indonesian (Bahasa Indonesia baku).${bulletRule} Return ONLY bullet lines, with each bullet point on its own line directly following the previous one (use single newline character '\\n' as separator, without empty lines/blank rows between them). DO NOT use markdown bullets like '-' or '*'. No conversational filler.`
+        ? `You are a seasoned career coach who writes like a real person, not a machine. Rewrite the user's professional summary in professional Indonesian (Bahasa Indonesia baku) so it reads like something a confident human professional would actually say about themselves.
+
+Rules:
+- Write 4-6 well-constructed sentences that flow naturally. Do NOT make it too short or overly compressed.
+- Use active voice and concrete language. Mention specific domains, tools, or achievements the user provided — do not invent new ones.
+- Vary your sentence openings: do NOT start every sentence with the same structure. Mix simple and compound sentences.
+- Avoid overused AI filler words such as "berdedikasi", "berpengalaman luas", "passionate", "proven track record", "leveraging", "spearheading", "cutting-edge", "innovative solutions". Write the way a real Indonesian professional would describe themselves in a formal setting.
+- Keep the tone confident but grounded — not boastful, not robotic.
+- Make it ATS-friendly by naturally incorporating relevant keywords from the user's input.
+- Return ONLY the rewritten summary paragraph. No headings, no labels, no conversational filler.`
+        : `You are a professional Resume Writer who writes like a real person, not a machine. Improve the user's work/project/education description into strong, ATS-friendly bullet points written in professional and formal Indonesian (Bahasa Indonesia baku).
+
+Rules:
+- Start each bullet with a strong action verb.
+- NEVER invent, fabricate, or assume numbers, percentages, metrics, or statistics that the user did not explicitly provide. If the user wrote "meningkatkan penjualan", do NOT add "sebesar 20%" or any made-up figure. Only include quantifiable data if the user's original text already contains it.
+- Keep each bullet descriptive and specific based on what the user actually wrote — add professional phrasing, not fictional achievements.
+- Avoid generic AI filler like "secara signifikan", "secara efektif", "berdedikasi". Be concrete and natural.
+${bulletRule}
+- Return ONLY the bullet text, one bullet per line. Do NOT prefix bullets with any marker like '•', '-', or '*'. Do NOT output the literal characters '\n' — just use actual line breaks. No conversational filler.`
       : type === 'summary'
-        ? "You are a professional Resume Writer (Harvard Style). Translate and rewrite the user's summary into polished Professional English for an international CV. Keep it concise (max 3-4 sentences), use active voice, and keep the meaning faithful to the original text. Return ONLY the final summary text, no conversational filler."
-        : `You are a professional Resume Writer. Translate and rewrite the user's description into polished Professional English bullet points for an international CV. Use strong action verbs and measurable impact when possible while preserving meaning.${bulletRule} Return ONLY bullet lines, with each bullet point on its own line directly following the previous one (use single newline character '\\n' as separator, without empty lines/blank rows between them). DO NOT use markdown bullets like '-' or '*'. No conversational filler.`;
+        ? `You are a seasoned career coach who writes like a real person, not a machine. Translate and rewrite the user's summary into polished Professional English for an international CV, making it sound like something a confident human professional would actually write about themselves.
+
+Rules:
+- Write 4-6 well-constructed sentences that flow naturally. Do NOT make it too short or overly compressed.
+- Use active voice and concrete language. Stay faithful to the original meaning — do not add claims or achievements that weren't in the source.
+- Vary your sentence openings: do NOT start every sentence the same way. Mix simple and compound sentences.
+- Avoid cliché AI phrases: "proven track record", "passionate about", "leveraging", "spearheading", "cutting-edge", "innovative solutions", "results-driven", "dynamic professional". Write the way a real person talks about their career.
+- Keep the tone confident but grounded — not boastful, not robotic.
+- Make it ATS-friendly by naturally weaving in relevant keywords from the user's input.
+- Return ONLY the final summary paragraph. No headings, no labels, no conversational filler.`
+        : `You are a professional Resume Writer who writes like a real person, not a machine. Translate and rewrite the user's description into polished Professional English bullet points for an international CV.
+
+Rules:
+- Start each bullet with a strong action verb.
+- NEVER invent, fabricate, or assume numbers, percentages, metrics, or statistics that the user did not explicitly provide. If the original says "increased sales", do NOT add "by 20%" or any made-up figure. Only include quantifiable data if the user's original text already contains it.
+- Keep each bullet descriptive and specific based on what the user actually wrote — add professional phrasing, not fictional achievements.
+- Stay faithful to the original meaning. Do not add claims that weren't in the source.
+- Avoid generic AI filler like "significantly", "effectively", "dedicated". Be concrete and natural.
+${bulletRule}
+- Return ONLY the bullet text, one bullet per line. Do NOT prefix bullets with any marker like '•', '-', or '*'. Do NOT output the literal characters '\n' — just use actual line breaks. No conversational filler.`;
 
   try {
     const chatCompletion = await groq.chat.completions.create({
@@ -43,15 +78,20 @@ export async function polishText(
         { role: 'system', content: systemPrompt },
         { role: 'user', content: text },
       ],
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
       temperature: 0.5,
     });
 
     const rawResult = chatCompletion.choices[0]?.message?.content || '';
     if (type === 'bullet') {
       return rawResult
+        // Handle literal '\n' strings the model might output instead of real newlines
+        .replace(/\\n/g, '\n')
         .split('\n')
         .map((line) => line.trim())
+        .filter((line) => line.length > 0)
+        // Strip any bullet markers (•, -, *, numbered) the model might add
+        .map((line) => line.replace(/^(?:[•\-*]|\d+[.)\s])\s*/, '').trim())
         .filter((line) => line.length > 0)
         .join('\n');
     }
@@ -164,7 +204,7 @@ Rules:
         { role: 'system', content: systemPrompt },
         { role: 'user', content: `Parse this CV:\n\n${text}` },
       ],
-      model: 'llama-3.3-70b-versatile',
+      model: 'openai/gpt-oss-120b',
       temperature: 0.1,
       max_tokens: 4096,
     });

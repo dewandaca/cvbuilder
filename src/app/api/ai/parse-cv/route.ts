@@ -56,7 +56,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // Use Groq LLM to parse the extracted text into structured CVData
+    // Use Groq LLM (GPT-OSS 120B) to parse the extracted text into structured CVData
     const jsonString = await parseCvFromText(extractedText);
 
     let parsedData: unknown;
