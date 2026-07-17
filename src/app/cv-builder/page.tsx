@@ -892,12 +892,8 @@ export default function CvBuilder() {
         if (data.profilePhoto) {
           setProfilePhoto(data.profilePhoto);
         }
-        if (data.hasSelectedTemplate !== undefined) {
-          setHasSelectedTemplate(data.hasSelectedTemplate);
-        } else if (saved) {
-          // If we have saved data from before this feature, they have selected a template
-          setHasSelectedTemplate(true);
-        }
+        // hasSelectedTemplate is intentionally NOT restored from localStorage.
+        // Users should always pick a template when entering the builder page.
       } catch {
         // ignore corrupted data
       }
@@ -923,10 +919,9 @@ export default function CvBuilder() {
       sectionOrder: orderedSectionOrder,
       sectionTitles,
       selectedTemplate,
-      hasSelectedTemplate,
       profilePhoto: profilePhoto || undefined,
     }),
-    [personalInfo, educations, experiences, projects, achievements, customSections, skills, orderedSectionOrder, sectionTitles, selectedTemplate, hasSelectedTemplate, profilePhoto]
+    [personalInfo, educations, experiences, projects, achievements, customSections, skills, orderedSectionOrder, sectionTitles, selectedTemplate, profilePhoto]
   );
 
   // Auto-save to localStorage whenever data changes (only after hydration)
@@ -1577,7 +1572,7 @@ export default function CvBuilder() {
           </div>
 
           {/* Grid of Templates */}
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6 items-stretch">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-6 items-stretch max-w-3xl mx-auto">
             
             {/* Card 1: Harvard Style */}
             <div 
@@ -1635,26 +1630,6 @@ export default function CvBuilder() {
               </div>
             </div>
 
-            {/* Card 3: Creative Style (Coming Soon) */}
-            <div className="relative bg-white/1 border border-white/5 rounded-2xl p-6 flex flex-col justify-between opacity-60">
-              <div>
-                <div className="flex justify-between items-start mb-4">
-                  <div className="w-10 h-10 bg-white/5 border border-white/10 text-slate-400 rounded-xl flex items-center justify-center font-bold text-sm">
-                    03
-                  </div>
-                  <span className="text-[10px] font-bold bg-white/5 text-slate-400 px-2 py-0.5 rounded-full border border-white/10 uppercase tracking-wider">
-                    Coming Soon
-                  </span>
-                </div>
-                <h3 className="font-heading font-extrabold text-slate-400 text-lg mb-2">Visual Creative</h3>
-                <p className="text-xs text-slate-500 leading-relaxed mb-6">
-                  Desain dua kolom dengan sidebar kontak kiri, grafik level skill visual, dan ruang untuk portofolio singkat. Direkomendasikan untuk Desainer dan Developer.
-                </p>
-              </div>
-              <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-bold text-slate-500">
-                <span>Belum Tersedia</span>
-              </div>
-            </div>
 
           </div>
         </main>
