@@ -855,10 +855,10 @@ export default function CvBuilder() {
   const [hasSelectedTemplate, setHasSelectedTemplate] = useState<boolean>(false);
 
   const [personalInfo, setPersonalInfo] = useState(createEmptyPersonalInfo());
-  const [educations, setEducations] = useState<Education[]>([createEmptyEducation(1)]);
-  const [experiences, setExperiences] = useState<Experience[]>([createEmptyExperience(1)]);
-  const [projects, setProjects] = useState<Project[]>([createEmptyProject(1)]);
-  const [achievements, setAchievements] = useState<Achievement[]>([createEmptyAchievement(1)]);
+  const [educations, setEducations] = useState<Education[]>([]);
+  const [experiences, setExperiences] = useState<Experience[]>([]);
+  const [projects, setProjects] = useState<Project[]>([]);
+  const [achievements, setAchievements] = useState<Achievement[]>([]);
   const [customSections, setCustomSections] = useState<CustomSection[]>([]);
   const [skills, setSkills] = useState({ hard: '', soft: '' });
   const [sectionOrder, setSectionOrder] = useState<SectionOrderToken[]>(() => [...DEFAULT_SECTION_ORDER]);
@@ -878,10 +878,10 @@ export default function CvBuilder() {
       try {
         const data = JSON.parse(saved);
         setPersonalInfo(data.personalInfo || createEmptyPersonalInfo());
-        setEducations(data.educations || [createEmptyEducation(1)]);
-        setExperiences(data.experiences || [createEmptyExperience(1)]);
-        setProjects(data.projects || [createEmptyProject(1)]);
-        setAchievements(data.achievements || [createEmptyAchievement(1)]);
+        setEducations(data.educations || []);
+        setExperiences(data.experiences || []);
+        setProjects(data.projects || []);
+        setAchievements(data.achievements || []);
         setCustomSections(data.customSections || []);
         setSkills(data.skills || { hard: '', soft: '' });
         setSectionOrder(data.sectionOrder || [...DEFAULT_SECTION_ORDER]);
@@ -932,10 +932,10 @@ export default function CvBuilder() {
 
   const hasAnyData = () => {
     const hasPersonal = Object.values(personalInfo).some(val => val.trim() !== '');
-    const hasEducations = educations.length > 1 || (educations[0] && (educations[0].school || educations[0].major || educations[0].description));
-    const hasExperiences = experiences.length > 1 || (experiences[0] && (experiences[0].role || experiences[0].company || experiences[0].description));
-    const hasProjects = projects.length > 1 || (projects[0] && (projects[0].name || projects[0].role || projects[0].description));
-    const hasAchievements = achievements.length > 1 || (achievements[0] && (achievements[0].name || achievements[0].year));
+    const hasEducations = educations.length > 0;
+    const hasExperiences = experiences.length > 0;
+    const hasProjects = projects.length > 0;
+    const hasAchievements = achievements.length > 0;
     const hasCustom = customSections.length > 0;
     const hasSkills = skills.hard.trim() !== '' || skills.soft.trim() !== '';
 
