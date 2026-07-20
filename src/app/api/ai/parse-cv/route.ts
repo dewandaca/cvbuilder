@@ -1,5 +1,5 @@
 import { NextResponse } from 'next/server';
-import pdfParse from 'pdf-parse';
+import { extractText, getDocumentProxy } from 'unpdf';
 import mammoth from 'mammoth';
 import { parseCvFromText } from '@/app/actions';
 
@@ -25,10 +25,9 @@ export async function POST(request: Request) {
 if (mimeType === "application/pdf") {
   try {
     const arrayBuffer = await file.arrayBuffer();
-    const buffer = Buffer.from(arrayBuffer);
-
-    const parsed = await pdfParse(buffer);
-    extractedText = parsed.text;
+    const pdf = await getDocumentProxy(new Uint8Array(arrayBuffer));
+    const { text } = await extractText(pdf, { mergePages: true });
+    extractedText = text;
 
   } catch (error) {
     console.error("PDF Parse Error:", error);
