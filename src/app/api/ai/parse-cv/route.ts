@@ -27,7 +27,8 @@ export async function POST(request: Request) {
       const arrayBuffer = await file.arrayBuffer();
       const buffer = Buffer.from(arrayBuffer);
 
-      const pdfParse = _require('pdf-parse') as (buffer: Buffer) => Promise<{ text: string }>;
+      const pdfParseModule = _require('pdf-parse');
+      const pdfParse = (typeof pdfParseModule === 'function' ? pdfParseModule : pdfParseModule.default) as (buffer: Buffer) => Promise<{ text: string }>;
       const parsed = await pdfParse(buffer);
       extractedText = parsed.text;
     }
