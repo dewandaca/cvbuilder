@@ -1,9 +1,9 @@
 import { NextResponse } from 'next/server';
-import { createRequire } from 'node:module';
+import pdfParse from 'pdf-parse';
+import mammoth from 'mammoth';
 import { parseCvFromText } from '@/app/actions';
 
-// Use Node.js native require to bypass Turbopack's bundler interception for CommonJS modules
-const _require = createRequire(import.meta.url);
+export const runtime = 'nodejs';
 
 const DOCX_MIME_TYPES = [
   'application/vnd.openxmlformats-officedocument.wordprocessingml.document', // .docx
@@ -21,34 +21,51 @@ export async function POST(request: Request) {
 
     const mimeType = file.type;
     let extractedText = '';
+// --- Handle PDF ---
+if (mimeType === "application/pdf") {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
 
-    // --- Handle PDF ---
-    if (mimeType === 'application/pdf') {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+    const parsed = await pdfParse(buffer);
+    extractedText = parsed.text;
 
-      const pdfParseModule = _require('pdf-parse');
-      const pdfParse = (typeof pdfParseModule === 'function' ? pdfParseModule : pdfParseModule.default) as (buffer: Buffer) => Promise<{ text: string }>;
-      const parsed = await pdfParse(buffer);
-      extractedText = parsed.text;
-    }
-    // --- Handle DOCX / DOC ---
-    else if (DOCX_MIME_TYPES.includes(mimeType)) {
-      const arrayBuffer = await file.arrayBuffer();
-      const buffer = Buffer.from(arrayBuffer);
+  } catch (error) {
+    console.error("PDF Parse Error:", error);
 
-      const mammoth = _require('mammoth') as {
-        extractRawText: (input: { buffer: Buffer }) => Promise<{ value: string }>;
-      };
-      const result = await mammoth.extractRawText({ buffer });
-      extractedText = result.value;
-    }
-    else {
-      return NextResponse.json(
-        { error: 'Tipe file tidak didukung. Gunakan PDF atau DOCX/DOC.' },
-        { status: 400 }
-      );
-    }
+    return NextResponse.json(
+      { error: "Gagal membaca dokumen PDF." },
+      { status: 400 }
+    );
+  }
+}
+
+// --- Handle DOCX / DOC ---
+else if (DOCX_MIME_TYPES.includes(mimeType)) {
+  try {
+    const arrayBuffer = await file.arrayBuffer();
+    const buffer = Buffer.from(arrayBuffer);
+
+    const result = await mammoth.extractRawText({ buffer });
+    extractedText = result.value;
+
+  } catch (error) {
+    console.error("DOCX Parse Error:", error);
+
+    return NextResponse.json(
+      { error: "Gagal membaca dokumen DOCX." },
+      { status: 400 }
+    );
+  }
+}
+
+// --- File tidak didukung ---
+else {
+  return NextResponse.json(
+    { error: "Tipe file tidak didukung. Gunakan PDF atau DOCX/DOC." },
+    { status: 400 }
+  );
+}
 
     if (!extractedText.trim()) {
       return NextResponse.json(
