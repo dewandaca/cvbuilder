@@ -835,6 +835,7 @@ export default function CvBuilder() {
   const router = useRouter();
   const [loadingAI, setLoadingAI] = useState<string | null>(null);
   const [isGeneratingPdf, setIsGeneratingPdf] = useState(false);
+  const [pdfValidationErrors, setPdfValidationErrors] = useState<string[]>([]);
   const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
   const [isExitModalOpen, setIsExitModalOpen] = useState(false); // kept for type safety, no longer used
@@ -1187,7 +1188,22 @@ export default function CvBuilder() {
   };
 
   // --- PDF GENERATION ---
+  const validateCvForExport = (): string[] => {
+    const errors: string[] = [];
+    if (!personalInfo.fullName.trim()) errors.push('Nama lengkap belum diisi');
+    if (!personalInfo.email.trim()) errors.push('Email belum diisi');
+    const hasEducation = educations.some(e => e.school.trim() !== '');
+    if (!hasEducation) errors.push('Minimal satu entri pendidikan harus diisi');
+    return errors;
+  };
+
   const handleDownloadPDF = async () => {
+    const errors = validateCvForExport();
+    if (errors.length > 0) {
+      setPdfValidationErrors(errors);
+      return;
+    }
+    setPdfValidationErrors([]);
     setIsGeneratingPdf(true);
     try {
       const cvComponent = selectedTemplate === 'modern'
@@ -2566,6 +2582,44 @@ export default function CvBuilder() {
         </div>
       )}
 
+      {/* PDF Validation Error Modal */}
+      {pdfValidationErrors.length > 0 && (
+        <div
+          onClick={() => setPdfValidationErrors([])}
+          style={{ position: 'fixed', inset: 0, zIndex: 9999, display: 'flex', alignItems: 'center', justifyContent: 'center', padding: 16, backdropFilter: 'blur(6px)', backgroundColor: 'rgba(15,23,42,0.55)' }}
+        >
+          <div
+            onClick={e => e.stopPropagation()}
+            style={{ background: '#fff', borderRadius: 16, boxShadow: '0 20px 60px rgba(0,0,0,0.2)', width: '100%', maxWidth: 340, padding: '20px 20px 16px' }}
+          >
+            <div style={{ display: 'flex', alignItems: 'center', gap: 10, marginBottom: 12 }}>
+              <div style={{ width: 34, height: 34, borderRadius: '50%', background: '#fee2e2', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+                <svg width="17" height="17" fill="none" viewBox="0 0 24 24" stroke="#dc2626" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M12 9v3.75m-9.303 3.376c-.866 1.5.217 3.374 1.948 3.374h14.71c1.73 0 2.813-1.874 1.948-3.374L13.949 3.378c-.866-1.5-3.032-1.5-3.898 0L2.697 16.126ZM12 15.75h.007v.008H12v-.008Z" /></svg>
+              </div>
+              <div>
+                <div style={{ fontWeight: 700, fontSize: 14, color: '#1e293b' }}>CV belum lengkap</div>
+                <div style={{ fontSize: 11, color: '#94a3b8', marginTop: 1 }}>Lengkapi data ini sebelum export PDF:</div>
+              </div>
+            </div>
+            <ul style={{ listStyle: 'none', margin: '0 0 14px 0', padding: 0, display: 'flex', flexDirection: 'column', gap: 7 }}>
+              {pdfValidationErrors.map((err, i) => (
+                <li key={i} style={{ display: 'flex', alignItems: 'flex-start', gap: 8, fontSize: 13, color: '#334155' }}>
+                  <span style={{ flexShrink: 0, width: 18, height: 18, borderRadius: '50%', background: '#fff1f2', border: '1.5px solid #fecaca', display: 'flex', alignItems: 'center', justifyContent: 'center', color: '#ef4444', fontWeight: 700, fontSize: 10, marginTop: 1 }}>{i + 1}</span>
+                  {err}
+                </li>
+              ))}
+            </ul>
+            <button
+              onClick={() => setPdfValidationErrors([])}
+              style={{ width: '100%', padding: '9px 0', background: '#1e293b', color: '#fff', border: 'none', borderRadius: 10, fontWeight: 600, fontSize: 13, cursor: 'pointer' }}
+              onMouseEnter={e => (e.currentTarget.style.background = '#334155')}
+              onMouseLeave={e => (e.currentTarget.style.background = '#1e293b')}
+            >
+              Oke, saya lengkapi dulu
+            </button>
+          </div>
+        </div>
+      )}
 
     </div>
   );
