@@ -10,771 +10,33 @@ import {
   Briefcase, GraduationCap, Trophy, Code, FolderGit2, Sparkles, ArrowUp, ArrowDown, Eye, X, Upload, FileText, CheckCircle2, AlertCircle, ImageIcon, Camera
 } from 'lucide-react';
 import { parseCvApi } from '@/lib/aiApiClient';
-import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 
-// --- Type Definitions ---
-type Education = { id: number; school: string; major: string; gpa: string; startDate: string; endDate: string; isCurrent: boolean; description: string; };
-type Experience = { id: number; role: string; company: string; startDate: string; endDate: string; isCurrent: boolean; description: string; };
-type Project = { id: number; name: string; role: string; startDate: string; endDate: string; description: string; };
-type Achievement = { id: number; name: string; year: string; };
-type CustomSectionMode = 'simple' | 'experience';
-type CustomSectionItem = {
-  id: number;
-  title: string;
-  subtitle: string;
-  startDate: string;
-  endDate: string;
-  isCurrent: boolean;
-  description: string;
-};
-type CustomSection = {
-  id: number;
-  title: string;
-  content: string;
-  mode?: CustomSectionMode;
-  items?: CustomSectionItem[];
-};
-type BaseSectionKey = 'summary' | 'education' | 'experience' | 'projects' | 'skills' | 'achievements';
-type SectionOrderToken = BaseSectionKey | `custom:${number}`;
-type CVData = {
-  personalInfo: {
-    fullName: string;
-    address: string;
-    email: string;
-    phone: string;
-    linkedin: string;
-    summary: string;
-  };
-  educations: Education[];
-  experiences: Experience[];
-  projects: Project[];
-  achievements: Achievement[];
-  customSections: CustomSection[];
-  skills: {
-    hard: string;
-    soft: string;
-  };
-  sectionOrder?: string[];
-  sectionTitles?: Record<string, string>;
-  profilePhoto?: string; // base64 data URL
-};
-
-const DEFAULT_SECTION_ORDER: BaseSectionKey[] = [
-  'summary',
-  'education',
-  'experience',
-  'projects',
-  'skills',
-  'achievements',
-];
-
-const SECTION_ORDER_LABELS: Record<BaseSectionKey, string> = {
-  summary: 'Summary',
-  education: 'Education',
-  experience: 'Work Experience',
-  projects: 'Projects',
-  skills: 'Skills',
-  achievements: 'Honors & Awards',
-};
-
-const BASE_SECTION_LOOKUP = new Set<BaseSectionKey>(DEFAULT_SECTION_ORDER);
-const CUSTOM_SECTION_TOKEN_PREFIX = 'custom:';
-const LEGACY_CUSTOM_SECTION_TOKEN = 'custom';
-
-function isBaseSectionKey(token: string): token is BaseSectionKey {
-  return BASE_SECTION_LOOKUP.has(token as BaseSectionKey);
-}
-
-function getCustomSectionToken(id: number): `custom:${number}` {
-  return `custom:${id}`;
-}
-
-function getCustomSectionIdFromToken(token: string): number | null {
-  if (!token.startsWith(CUSTOM_SECTION_TOKEN_PREFIX)) return null;
-
-  const rawId = token.slice(CUSTOM_SECTION_TOKEN_PREFIX.length);
-  const id = Number(rawId);
-  return Number.isInteger(id) && id > 0 ? id : null;
-}
-
-function resolveSectionOrder(sectionOrder: string[] | undefined, customSections: CustomSection[]): SectionOrderToken[] {
-  const customTokens = customSections.map((section) => getCustomSectionToken(section.id));
-  const validCustomTokenSet = new Set<string>(customTokens);
-  const seen = new Set<string>();
-  const resolved: string[] = [];
-
-  const appendToken = (token: string) => {
-    if (seen.has(token)) return;
-    seen.add(token);
-    resolved.push(token);
-  };
-
-  for (const rawToken of sectionOrder || []) {
-    if (isBaseSectionKey(rawToken)) {
-      appendToken(rawToken);
-      continue;
-    }
-
-    if (rawToken === LEGACY_CUSTOM_SECTION_TOKEN) {
-      for (const customToken of customTokens) {
-        appendToken(customToken);
-      }
-      continue;
-    }
-
-    if (validCustomTokenSet.has(rawToken)) {
-      appendToken(rawToken);
-    }
-  }
-
-  for (const baseSection of DEFAULT_SECTION_ORDER) {
-    appendToken(baseSection);
-  }
-
-  for (const customToken of customTokens) {
-    appendToken(customToken);
-  }
-
-  return resolved as SectionOrderToken[];
-}
-
-function getSectionOrderLabel(
-  token: SectionOrderToken,
-  customSections: CustomSection[],
-  sectionTitles?: Record<string, string>
-): string {
-  if (isBaseSectionKey(token)) {
-    return sectionTitles?.[token] || SECTION_ORDER_LABELS[token];
-  }
-
-  const customId = getCustomSectionIdFromToken(token);
-  if (!customId) return 'Custom Section';
-
-  const section = customSections.find((item) => item.id === customId);
-  const title = section?.title.trim();
-  return title ? `Custom: ${title}` : `Custom Section #${customId}`;
-}
-
-const formatDateRangePreview = (startDate?: string, endDate?: string, isCurrent?: boolean) => {
-  const start = startDate?.trim();
-  const end = endDate?.trim();
-
-  if (isCurrent) {
-    return start ? `${start} - Present` : 'Present';
-  }
-
-  if (start && end) return `${start} - ${end}`;
-  if (start) return start;
-  if (end) return end;
-  return '';
-};
-
-const parseBulletItemsPreview = (text: string) => {
-  if (!text?.trim()) return [];
-
-  const lines = text
-    .split('\n')
-    .map((line) => line.trim())
-    .filter((line) => line.length > 0);
-
-  const items = lines
-    .map((line) => line.replace(/^(•|-|\*)\s*/, '').trim())
-    .filter((line) => line.length > 0);
-
-  return items.length > 0 ? items : [text.trim()];
-};
-
-const createEmptyCustomSectionItem = (id: number): CustomSectionItem => ({
-  id,
-  title: '',
-  subtitle: '',
-  startDate: '',
-  endDate: '',
-  isCurrent: false,
-  description: '',
-});
-
-const normalizeCustomSectionItems = (items?: CustomSectionItem[]): CustomSectionItem[] => {
-  if (!Array.isArray(items)) return [];
-
-  return items.map((item, index) => {
-    const fallback = createEmptyCustomSectionItem(index + 1);
-    const id = typeof item?.id === 'number' && item.id > 0 ? item.id : index + 1;
-
-    return {
-      ...fallback,
-      ...item,
-      id,
-      title: typeof item?.title === 'string' ? item.title : '',
-      subtitle: typeof item?.subtitle === 'string' ? item.subtitle : '',
-      startDate: typeof item?.startDate === 'string' ? item.startDate : '',
-      endDate: typeof item?.endDate === 'string' ? item.endDate : '',
-      description: typeof item?.description === 'string' ? item.description : '',
-      isCurrent: item?.isCurrent === true,
-    };
-  });
-};
-
-const normalizeCustomSections = (sections?: CustomSection[]): CustomSection[] => {
-  if (!Array.isArray(sections)) return [];
-
-  return sections.map((section, index) => {
-    const id = typeof section?.id === 'number' && section.id > 0 ? section.id : index + 1;
-
-    return {
-      id,
-      title: typeof section?.title === 'string' ? section.title : '',
-      content: typeof section?.content === 'string' ? section.content : '',
-      mode: section?.mode === 'experience' ? 'experience' : 'simple',
-      items: normalizeCustomSectionItems(section?.items),
-    };
-  });
-};
-
-const hasCustomSectionExperienceContent = (section: CustomSection): boolean =>
-  normalizeCustomSectionItems(section.items).some((item) =>
-    item.title.trim() ||
-    item.subtitle.trim() ||
-    item.startDate.trim() ||
-    item.endDate.trim() ||
-    item.description.trim(),
-  );
-
-const PreviewSectionTitle = ({ children }: { children: string }) => (
-  <h3 className="mt-4 mb-2 border-b border-black pb-0.5 text-[11px] font-bold uppercase tracking-wide text-black">
-    {children}
-  </h3>
-);
-
-const HarvardCVLivePreview = ({ data }: { data: CVData }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  const [contentHeight, setContentHeight] = useState(0);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const update = () => {
-      const available = el.offsetWidth - 16; // 16 = p-2 padding (8px each side)
-      setScale(Math.min(1, available / 794));
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  // Separately track the natural (unscaled) height of the content
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => {
-      setContentHeight(el.scrollHeight);
-    });
-    ro.observe(el);
-    setContentHeight(el.scrollHeight);
-    return () => ro.disconnect();
-  }, []);
-
-  const displayLinkedin = data.personalInfo.linkedin
-    ? data.personalInfo.linkedin.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
-    : '';
-
-  const orderedSections = resolveSectionOrder(data.sectionOrder, data.customSections);
-  const customSectionsWithContent = data.customSections
-    .filter((section) => {
-      const mode: CustomSectionMode = section.mode === 'experience' ? 'experience' : 'simple';
-      if (mode === 'experience') {
-        return section.title.trim() || hasCustomSectionExperienceContent(section);
-      }
-
-      return section.title.trim() || section.content.trim();
-    });
-  const customSectionsById = new Map(customSectionsWithContent.map((section) => [section.id, section]));
-
-  const sectionContent: Record<BaseSectionKey, React.ReactNode> = {
-    summary: data.personalInfo.summary.trim()
-      ? (
-        <section key="summary">
-          <PreviewSectionTitle>{data.sectionTitles?.summary || 'Summary'}</PreviewSectionTitle>
-          <p className="text-[10.5px] leading-[1.45] text-justify">{data.personalInfo.summary}</p>
-        </section>
-      )
-      : null,
-    education: data.educations.length > 0
-      ? (
-        <section key="education">
-          <PreviewSectionTitle>{data.sectionTitles?.education || 'Education'}</PreviewSectionTitle>
-          {data.educations.map((education) => {
-            const bullets = parseBulletItemsPreview(education.description);
-            const dateRange = formatDateRangePreview(education.startDate, education.endDate, education.isCurrent);
-
-            return (
-              <div key={education.id} className="mb-2 text-[10.5px] leading-[1.4]">
-                <div className="flex items-end justify-between gap-4">
-                  <p className="font-bold">{education.school}</p>
-                  <p>{dateRange}</p>
-                </div>
-                <p className="italic">
-                  {education.major}
-                  {education.gpa ? ` | GPA: ${education.gpa}` : ''}
-                </p>
-                {bullets.length > 0 && (
-                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                    {bullets.map((item, index) => (
-                      <li key={`${education.id}-${index}`}>{item}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </section>
-      )
-      : null,
-    experience: data.experiences.length > 0
-      ? (
-        <section key="experience">
-          <PreviewSectionTitle>{data.sectionTitles?.experience || 'Work Experience'}</PreviewSectionTitle>
-          {data.experiences.map((experience) => {
-            const bullets = parseBulletItemsPreview(experience.description);
-            const dateRange = formatDateRangePreview(experience.startDate, experience.endDate, experience.isCurrent);
-
-            return (
-              <div key={experience.id} className="mb-2 text-[10.5px] leading-[1.4]">
-                <div className="flex items-end justify-between gap-4">
-                  <p className="font-bold">{experience.role}, {experience.company}</p>
-                  <p>{dateRange}</p>
-                </div>
-                {bullets.length > 0 && (
-                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                    {bullets.map((item, index) => (
-                      <li key={`${experience.id}-${index}`}>{item}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </section>
-      )
-      : null,
-    projects: data.projects.length > 0
-      ? (
-        <section key="projects">
-          <PreviewSectionTitle>{data.sectionTitles?.projects || 'Projects'}</PreviewSectionTitle>
-          {data.projects.map((project) => {
-            const bullets = parseBulletItemsPreview(project.description);
-            const dateRange = formatDateRangePreview(project.startDate, project.endDate);
-
-            return (
-              <div key={project.id} className="mb-2 text-[10.5px] leading-[1.4]">
-                <div className="flex items-end justify-between gap-4">
-                  <p className="font-bold">{project.name} | {project.role}</p>
-                  <p>{dateRange}</p>
-                </div>
-                {bullets.length > 0 && (
-                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                    {bullets.map((item, index) => (
-                      <li key={`${project.id}-${index}`}>{item}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </section>
-      )
-      : null,
-    skills: (data.skills.hard.trim() || data.skills.soft.trim())
-      ? (
-        <section key="skills">
-          <PreviewSectionTitle>{data.sectionTitles?.skills || 'Skills'}</PreviewSectionTitle>
-          {data.skills.hard.trim() && (
-            <p className="mb-1 text-[10.5px]">
-              <span className="font-bold">Hard Skills: </span>
-              {data.skills.hard}
-            </p>
-          )}
-          {data.skills.soft.trim() && (
-            <p className="text-[10.5px]">
-              <span className="font-bold">Soft Skills: </span>
-              {data.skills.soft}
-            </p>
-          )}
-        </section>
-      )
-      : null,
-    achievements: data.achievements.length > 0 && data.achievements[0].name !== ''
-      ? (
-        <section key="achievements">
-          <PreviewSectionTitle>{data.sectionTitles?.achievements || 'Honors & Awards'}</PreviewSectionTitle>
-          <ul className="ml-4 list-disc space-y-0.5 text-[10.5px] leading-[1.4]">
-            {data.achievements.map((achievement) => (
-              <li key={achievement.id}>
-                {achievement.name}
-                {achievement.year ? ` (${achievement.year})` : ''}
-              </li>
-            ))}
-          </ul>
-        </section>
-      )
-      : null,
-  };
-
-  const renderCustomSection = (section: CustomSection): React.ReactNode => {
-    const mode: CustomSectionMode = section.mode === 'experience' ? 'experience' : 'simple';
-    const entries = normalizeCustomSectionItems(section.items).filter((item) =>
-      item.title.trim() ||
-      item.subtitle.trim() ||
-      item.startDate.trim() ||
-      item.endDate.trim() ||
-      item.description.trim(),
-    );
-    const bullets = parseBulletItemsPreview(section.content);
-
-    return (
-      <section key={`custom-${section.id}`}>
-        <PreviewSectionTitle>{section.title || 'Custom Section'}</PreviewSectionTitle>
-        {mode === 'experience' && entries.length > 0
-          ? entries.map((entry) => {
-            const dateRange = formatDateRangePreview(entry.startDate, entry.endDate, entry.isCurrent);
-            const entryHeading = [entry.title.trim(), entry.subtitle.trim()].filter(Boolean).join(', ');
-            const entryBullets = parseBulletItemsPreview(entry.description);
-
-            return (
-              <div key={`custom-entry-${section.id}-${entry.id}`} className="mb-2 text-[10.5px] leading-[1.4]">
-                <div className="flex items-end justify-between gap-4">
-                  <p className="font-bold">{entryHeading || 'Entry'}</p>
-                  <p>{dateRange}</p>
-                </div>
-                {entryBullets.length > 0 && (
-                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                    {entryBullets.map((item, index) => (
-                      <li key={`custom-entry-bullet-${section.id}-${entry.id}-${index}`}>{item}</li>
-                    ))}
-                  </ul>
-                )}
-              </div>
-            );
-          })
-          : bullets.length > 0 && (
-            <ul className="ml-4 list-disc space-y-0.5 text-[10.5px] leading-[1.4]">
-              {bullets.map((item, index) => (
-                <li key={`${section.id}-${index}`}>{item}</li>
-              ))}
-            </ul>
-          )}
-      </section>
-    );
-  };
-
-  return (
-    <div ref={containerRef} className="bg-transparent p-2 w-full flex justify-center">
-      {/* Wrapper div that tells the scroll container the true scaled height and centers the page */}
-      <div style={{ width: 794 * scale, height: contentHeight > 0 ? contentHeight * scale : 'auto', position: 'relative' }}>
-        <div
-          ref={contentRef}
-          className="bg-white p-6 sm:p-8 text-black shadow-sm"
-          style={{
-            fontFamily: 'Times New Roman, Times, serif',
-            fontSize: 10.5,
-            lineHeight: 1.4,
-            width: 794,
-            transformOrigin: 'top left',
-            transform: `scale(${scale})`,
-            position: 'absolute',
-            top: 0,
-            left: 0,
-          }}
-        >
-        <div className="mb-4 text-center">
-          <h1 className="mb-2 text-[20px] font-bold uppercase tracking-wide">
-            {data.personalInfo.fullName || 'YOUR NAME'}
-          </h1>
-          <p className="text-[10px]">
-            {[
-              data.personalInfo.address,
-              data.personalInfo.email,
-              data.personalInfo.phone,
-              displayLinkedin,
-            ].filter(Boolean).join(' | ')}
-          </p>
-        </div>
-
-        {orderedSections.map((sectionKey) => {
-          if (isBaseSectionKey(sectionKey)) {
-            return sectionContent[sectionKey];
-          }
-
-          const customId = getCustomSectionIdFromToken(sectionKey);
-          if (!customId) return null;
-
-          const customSection = customSectionsById.get(customId);
-          return customSection ? renderCustomSection(customSection) : null;
-        })}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-const NAVY = '#1a3c6e';
-
-const ModernSectionTitle = ({ children }: { children: string }) => (
-  <h3 style={{ color: NAVY, borderBottom: `1.5px solid ${NAVY}`, paddingBottom: 2, marginTop: 10, marginBottom: 4, fontSize: 11, fontWeight: 'bold', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-    {children}
-  </h3>
-);
-
-// --- MODERN CV LIVE PREVIEW ---
-const ModernCVLivePreview = ({ data }: { data: CVData & { profilePhoto?: string } }) => {
-  const containerRef = useRef<HTMLDivElement>(null);
-  const contentRef = useRef<HTMLDivElement>(null);
-  const [scale, setScale] = useState(1);
-  const [contentHeight, setContentHeight] = useState(0);
-
-  useEffect(() => {
-    const el = containerRef.current;
-    if (!el) return;
-    const update = () => {
-      const available = el.offsetWidth - 16;
-      setScale(Math.min(1, available / 794));
-    };
-    update();
-    const ro = new ResizeObserver(update);
-    ro.observe(el);
-    return () => ro.disconnect();
-  }, []);
-
-  useEffect(() => {
-    const el = contentRef.current;
-    if (!el) return;
-    const ro = new ResizeObserver(() => setContentHeight(el.scrollHeight));
-    ro.observe(el);
-    setContentHeight(el.scrollHeight);
-    return () => ro.disconnect();
-  }, []);
-
-  const displayLinkedin = data.personalInfo.linkedin
-    ? data.personalInfo.linkedin.replace(/^https?:\/\/(www\.)?/, '').replace(/\/$/, '')
-    : '';
-
-  const orderedSections = resolveSectionOrder(data.sectionOrder, data.customSections);
-  const customSectionsWithContent = data.customSections.filter((section) => {
-    const mode: CustomSectionMode = section.mode === 'experience' ? 'experience' : 'simple';
-    if (mode === 'experience') return section.title.trim() || hasCustomSectionExperienceContent(section);
-    return section.title.trim() || section.content.trim();
-  });
-  const customSectionsById = new Map(customSectionsWithContent.map((section) => [section.id, section]));
-
-  const sectionContent: Record<BaseSectionKey, React.ReactNode> = {
-    summary: data.personalInfo.summary.trim()
-      ? (
-        <section key="summary">
-          <ModernSectionTitle>{data.sectionTitles?.summary || 'Summary'}</ModernSectionTitle>
-          <p style={{ textAlign: 'justify', lineHeight: 1.5, fontSize: 10.5 }}>{data.personalInfo.summary}</p>
-        </section>
-      ) : null,
-    education: data.educations.length > 0
-      ? (
-        <section key="education">
-          <ModernSectionTitle>{data.sectionTitles?.education || 'Education'}</ModernSectionTitle>
-          {data.educations.map((edu) => {
-            const bullets = parseBulletItemsPreview(edu.description);
-            const dateRange = formatDateRangePreview(edu.startDate, edu.endDate, edu.isCurrent);
-            return (
-              <div key={edu.id} className="mb-2 text-[10.5px] leading-[1.4]">
-                <div className="flex items-end justify-between gap-4">
-                  <p className="font-bold">{edu.school}</p>
-                  <p className="shrink-0">{dateRange}</p>
-                </div>
-                {(edu.major || edu.gpa) && (
-                  <p className="italic">{edu.major}{edu.gpa ? ` | GPA: ${edu.gpa}` : ''}</p>
-                )}
-                {bullets.length > 0 && (
-                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                    {bullets.map((item, i) => <li key={i}>{item}</li>)}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </section>
-      ) : null,
-    experience: data.experiences.length > 0
-      ? (
-        <section key="experience">
-          <ModernSectionTitle>{data.sectionTitles?.experience || 'Experience'}</ModernSectionTitle>
-          {data.experiences.map((exp) => {
-            const bullets = parseBulletItemsPreview(exp.description);
-            const dateRange = formatDateRangePreview(exp.startDate, exp.endDate, exp.isCurrent);
-            return (
-              <div key={exp.id} className="mb-2 text-[10.5px] leading-[1.4]">
-                <div className="flex items-end justify-between gap-4">
-                  <p className="font-bold">{exp.role} - {exp.company}</p>
-                  <p className="shrink-0">{dateRange}</p>
-                </div>
-                {bullets.length > 0 && (
-                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                    {bullets.map((item, i) => <li key={i}>{item}</li>)}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </section>
-      ) : null,
-    projects: data.projects.length > 0
-      ? (
-        <section key="projects">
-          <ModernSectionTitle>{data.sectionTitles?.projects || 'Projects'}</ModernSectionTitle>
-          {data.projects.map((proj) => {
-            const bullets = parseBulletItemsPreview(proj.description);
-            const dateRange = formatDateRangePreview(proj.startDate, proj.endDate);
-            return (
-              <div key={proj.id} className="mb-2 text-[10.5px] leading-[1.4]">
-                <div className="flex items-end justify-between gap-4">
-                  <p className="font-bold">{proj.name} | {proj.role}</p>
-                  <p className="shrink-0">{dateRange}</p>
-                </div>
-                {bullets.length > 0 && (
-                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                    {bullets.map((item, i) => <li key={i}>{item}</li>)}
-                  </ul>
-                )}
-              </div>
-            );
-          })}
-        </section>
-      ) : null,
-    skills: (data.skills.hard.trim() || data.skills.soft.trim())
-      ? (
-        <section key="skills">
-          <ModernSectionTitle>{data.sectionTitles?.skills || 'Skills'}</ModernSectionTitle>
-          {data.skills.hard.trim() && (
-            <p className="mb-1 text-[10.5px]">• <span className="font-bold">Hard Skills: </span>{data.skills.hard}</p>
-          )}
-          {data.skills.soft.trim() && (
-            <p className="text-[10.5px]">• <span className="font-bold">Soft Skills: </span>{data.skills.soft}</p>
-          )}
-        </section>
-      ) : null,
-    achievements: data.achievements.length > 0 && data.achievements[0].name !== ''
-      ? (
-        <section key="achievements">
-          <ModernSectionTitle>{data.sectionTitles?.achievements || 'Honors & Awards'}</ModernSectionTitle>
-          <ul className="ml-4 list-disc space-y-0.5 text-[10.5px] leading-[1.4]">
-            {data.achievements.map((ach) => (
-              <li key={ach.id}>{ach.name}{ach.year ? ` (${ach.year})` : ''}</li>
-            ))}
-          </ul>
-        </section>
-      ) : null,
-  };
-
-  const renderCustomSection = (section: CustomSection): React.ReactNode => {
-    const mode: CustomSectionMode = section.mode === 'experience' ? 'experience' : 'simple';
-    const entries = normalizeCustomSectionItems(section.items).filter((item) =>
-      item.title.trim() || item.subtitle.trim() || item.startDate.trim() || item.endDate.trim() || item.description.trim(),
-    );
-    const bullets = parseBulletItemsPreview(section.content);
-    return (
-      <section key={`custom-${section.id}`}>
-        <ModernSectionTitle>{section.title || 'Custom Section'}</ModernSectionTitle>
-        {mode === 'experience' && entries.length > 0
-          ? entries.map((entry) => {
-            const dateRange = formatDateRangePreview(entry.startDate, entry.endDate, entry.isCurrent);
-            const entryHeading = [entry.title.trim(), entry.subtitle.trim()].filter(Boolean).join(', ');
-            const entryBullets = parseBulletItemsPreview(entry.description);
-            return (
-              <div key={`custom-entry-${section.id}-${entry.id}`} className="mb-2 text-[10.5px] leading-[1.4]">
-                <div className="flex items-end justify-between gap-4">
-                  <p className="font-bold">{entryHeading || 'Entry'}</p>
-                  <p>{dateRange}</p>
-                </div>
-                {entryBullets.length > 0 && (
-                  <ul className="mt-1 ml-4 list-disc space-y-0.5 text-justify">
-                    {entryBullets.map((item, i) => <li key={i}>{item}</li>)}
-                  </ul>
-                )}
-              </div>
-            );
-          })
-          : bullets.length > 0 && (
-            <ul className="ml-4 list-disc space-y-0.5 text-[10.5px] leading-[1.4]">
-              {bullets.map((item, i) => <li key={i}>{item}</li>)}
-            </ul>
-          )}
-      </section>
-    );
-  };
-
-  const contactFields = [
-    data.personalInfo.address ? { label: 'Address:', value: data.personalInfo.address } : null,
-    data.personalInfo.phone ? { label: 'Phone:', value: data.personalInfo.phone } : null,
-    data.personalInfo.email ? { label: 'Email:', value: data.personalInfo.email } : null,
-    displayLinkedin ? { label: 'LinkedIn:', value: displayLinkedin } : null,
-  ].filter(Boolean) as { label: string; value: string }[];
-
-  return (
-    <div ref={containerRef} className="bg-transparent p-2 w-full flex justify-center">
-      <div style={{ width: 794 * scale, height: contentHeight > 0 ? contentHeight * scale : 'auto', position: 'relative' }}>
-        <div
-          ref={contentRef}
-          className="bg-white text-black shadow-sm"
-          style={{
-            fontFamily: 'Helvetica, Arial, sans-serif',
-            fontSize: 10.5,
-            lineHeight: 1.4,
-            width: 794,
-            padding: 30,
-            transformOrigin: 'top left',
-            transform: `scale(${scale})`,
-            position: 'absolute',
-            top: 0,
-            left: 0,
-          }}
-        >
-          {/* HEADER: Photo + Name/Contact */}
-          <div style={{ display: 'flex', alignItems: 'flex-start', marginBottom: 12 }}>
-            {/* Photo */}
-            <div style={{ width: 75, height: 90, marginRight: 16, flexShrink: 0, background: '#d0d8e8', overflow: 'hidden' }}>
-              {data.profilePhoto && (
-                <img src={data.profilePhoto} alt="profile" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
-              )}
-            </div>
-            {/* Name + Contact */}
-            <div style={{ flex: 1 }}>
-              <h1 style={{ fontSize: 22, fontWeight: 'bold', color: NAVY, textTransform: 'uppercase', letterSpacing: '0.03em', marginBottom: 12 }}>
-                {data.personalInfo.fullName || 'YOUR NAME'}
-              </h1>
-              {contactFields.map((field, i) => (
-                <div key={i} style={{ display: 'flex', marginBottom: 3, fontSize: 10 }}>
-                  <span style={{ fontWeight: 'bold', width: 52, flexShrink: 0 }}>{field.label}</span>
-                  <span style={{ flex: 1 }}>{field.value}</span>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Sections */}
-          {orderedSections.map((sectionKey) => {
-            if (isBaseSectionKey(sectionKey)) return sectionContent[sectionKey];
-            const customId = getCustomSectionIdFromToken(sectionKey);
-            if (!customId) return null;
-            const customSection = customSectionsById.get(customId);
-            return customSection ? renderCustomSection(customSection) : null;
-          })}
-        </div>
-      </div>
-    </div>
-  );
-};
-
-// Generic type-safe helper for items with id
+// Types
+import type {
+  Education, Experience, Project, Achievement,
+  CustomSection, CustomSectionItem, CustomSectionMode,
+  BaseSectionKey, SectionOrderToken, CVData,
+} from '@/types/cv';
+
+// Utils
+import {
+  DEFAULT_SECTION_ORDER,
+  isBaseSectionKey,
+  getCustomSectionToken,
+  getCustomSectionIdFromToken,
+  resolveSectionOrder,
+  getSectionOrderLabel,
+  normalizeCustomSectionItems,
+} from '@/lib/cvUtils';
+
+// Components
+import { HarvardCVLivePreview } from '@/components/preview/HarvardCVLivePreview';
+import { ModernCVLivePreview } from '@/components/preview/ModernCVLivePreview';
+import { SectionHeader } from '@/components/ui/SectionHeader';
+import { MagicButton } from '@/components/ui/MagicButton';
+
+// --- Factory Functions ---
 type ItemWithId = { id: number; [key: string]: unknown };
 
 const createEmptyPersonalInfo = () => ({ fullName: '', address: '', email: '', phone: '', linkedin: '', summary: '' });
@@ -789,47 +51,24 @@ const createEmptyCustomSection = (): Omit<CustomSection, 'id'> => ({
   items: [],
 });
 
-const SectionHeader = ({ title, icon: Icon }: { title: string; icon: React.ElementType }) => (
-  <div className="flex items-center gap-2 sm:gap-3 mb-4 sm:mb-6 pb-3 sm:pb-4 border-b-2 border-slate-100">
-    <div className="w-10 h-10 sm:w-12 sm:h-12 bg-blue-50 text-blue-600 rounded-xl sm:rounded-2xl flex items-center justify-center shadow-sm">
-      <Icon size={20} className="sm:hidden" />
-      <Icon size={24} className="hidden sm:block" />
-    </div>
-    <div>
-      <h2 className="text-xl sm:text-2xl font-bold text-slate-800">{title}</h2>
-      <p className="text-[11px] sm:text-xs text-slate-400 mt-0.5">Complete this section for better results</p>
-    </div>
-  </div>
-);
+const createEmptyCustomSectionItem = (id: number): CustomSectionItem => ({
+  id,
+  title: '',
+  subtitle: '',
+  startDate: '',
+  endDate: '',
+  isCurrent: false,
+  description: '',
+});
 
-// Magic Button Style with enhanced animation
-const MagicButton = ({
-  onClick,
-  loading,
-  label,
-  variant = 'enhance'
-}: {
-  onClick: () => void;
-  loading: boolean;
-  label: string;
-  variant?: 'enhance' | 'translate';
-}) => (
-  <button 
-    onClick={onClick}
-    disabled={loading}
-    className={`group relative inline-flex items-center justify-center gap-2 px-4 sm:px-5 py-2.5 sm:py-2 min-h-10 text-sm sm:text-xs font-bold text-white transition-all duration-300 w-full sm:w-auto rounded-full shadow-lg hover:shadow-2xl disabled:opacity-50 disabled:cursor-not-allowed overflow-hidden hover:scale-105 active:scale-95 ${
-      variant === 'enhance'
-        ? 'bg-gradient-to-r from-purple-500 via-pink-500 to-rose-500 hover:from-purple-600 hover:via-pink-600 hover:to-rose-600 hover:shadow-purple-500/20'
-        : 'bg-gradient-to-r from-blue-500 via-indigo-500 to-cyan-500 hover:from-blue-600 hover:via-indigo-600 hover:to-cyan-600 hover:shadow-blue-500/20'
-    }`}
-  >
-    <span className="absolute inset-0 bg-white/20 rounded-full blur-xl group-hover:blur-2xl transition opacity-0 group-hover:opacity-50"></span>
-    <span className="relative flex items-center gap-1 z-10">
-      {loading ? <Loader2 className="animate-spin" size={14}/> : <Sparkles size={14} className="group-hover:rotate-12 group-hover:scale-110 transition"/>}
-      {label}
-    </span>
-  </button>
-);
+const DEFAULT_SECTION_TITLES: Record<BaseSectionKey, string> = {
+  summary: 'Summary',
+  education: 'Education',
+  experience: 'Work Experience',
+  projects: 'Projects',
+  skills: 'Skills',
+  achievements: 'Honors & Awards',
+};
 
 export default function CvBuilder() {
   const router = useRouter();
@@ -838,7 +77,7 @@ export default function CvBuilder() {
   const [pdfValidationErrors, setPdfValidationErrors] = useState<string[]>([]);
   const [isMobilePreviewOpen, setIsMobilePreviewOpen] = useState(false);
   const [isHydrated, setIsHydrated] = useState(false);
-  const [isExitModalOpen, setIsExitModalOpen] = useState(false); // kept for type safety, no longer used
+  const [isExitModalOpen, setIsExitModalOpen] = useState(false); 
 
   // --- Import CV State ---
   const [isImportModalOpen, setIsImportModalOpen] = useState(false);
@@ -864,14 +103,7 @@ export default function CvBuilder() {
   const [skills, setSkills] = useState({ hard: '', soft: '' });
   const [sectionOrder, setSectionOrder] = useState<SectionOrderToken[]>(() => [...DEFAULT_SECTION_ORDER]);
   const [activeSection, setActiveSection] = useState<SectionOrderToken>('summary');
-  const [sectionTitles, setSectionTitles] = useState<Record<BaseSectionKey, string>>({
-    summary: 'Summary',
-    education: 'Education',
-    experience: 'Work Experience',
-    projects: 'Projects',
-    skills: 'Skills',
-    achievements: 'Honors & Awards',
-  });
+  const [sectionTitles, setSectionTitles] = useState<Record<BaseSectionKey, string>>(DEFAULT_SECTION_TITLES);
 
   useEffect(() => {
     const saved = localStorage.getItem('cv-data');
@@ -977,14 +209,7 @@ export default function CvBuilder() {
     setSkills({ hard: '', soft: '' });
     setSectionOrder([...DEFAULT_SECTION_ORDER]);
     setActiveSection('summary');
-    setSectionTitles({
-      summary: 'Summary',
-      education: 'Education',
-      experience: 'Work Experience',
-      projects: 'Projects',
-      skills: 'Skills',
-      achievements: 'Honors & Awards',
-    });
+    setSectionTitles(DEFAULT_SECTION_TITLES);
     setSelectedTemplate('harvard');
     setHasSelectedTemplate(false);
     setProfilePhoto(null);
@@ -1156,14 +381,7 @@ export default function CvBuilder() {
     setSkills({ hard: '', soft: '' });
     setSectionOrder([...DEFAULT_SECTION_ORDER]);
     setActiveSection('summary');
-    setSectionTitles({
-      summary: 'Summary',
-      education: 'Education',
-      experience: 'Work Experience',
-      projects: 'Projects',
-      skills: 'Skills',
-      achievements: 'Honors & Awards',
-    });
+    setSectionTitles(DEFAULT_SECTION_TITLES);
     setProfilePhoto(null);
   };
 
@@ -1948,7 +1166,7 @@ export default function CvBuilder() {
                       </div>
                       <div className="relative mt-4">
                         <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-2 mb-2">
-                          <label className={labelClass}>What You Studied & Achievements</label>
+                          <label className={labelClass}>What You Studied &amp; Achievements</label>
                           <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 w-full sm:w-auto">
                             <MagicButton
                               onClick={() => handlePolish('bullet', 'id', edu.description, `edu-${edu.id}-id`, (val) => updateItem(edu.id, 'description', val, educations, setEducations))}
@@ -2486,7 +1704,7 @@ export default function CvBuilder() {
                           <Upload className="text-slate-400" size={28} />
                         </div>
                         <div>
-                          <p className="text-sm font-bold text-slate-700">Drag & drop file CV kamu di sini</p>
+                          <p className="text-sm font-bold text-slate-700">Drag &amp; drop file CV kamu di sini</p>
                           <p className="text-xs text-slate-400 mt-1">atau klik untuk pilih file</p>
                         </div>
                         <div className="flex gap-2 flex-wrap justify-center">
@@ -2533,7 +1751,7 @@ export default function CvBuilder() {
                       ) : (
                         <>
                           <Sparkles size={15} />
-                          Import & Auto-Fill
+                          Import &amp; Auto-Fill
                         </>
                       )}
                     </button>
