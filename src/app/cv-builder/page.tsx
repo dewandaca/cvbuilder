@@ -1176,7 +1176,7 @@ export default function CvBuilder() {
     idStr: string,
     setterCallback?: (val: string) => void
   ) => {
-    if (!text) return alert("Isi teks dulu sebelum minta bantuan AI!");
+    if (!text.trim()) return alert("Isi teks dulu sebelum minta bantuan AI!");
     setLoadingAI(idStr);
     try {
       let result = await polishTextApi(text, type, mode);
