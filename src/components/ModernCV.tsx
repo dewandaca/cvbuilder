@@ -233,7 +233,7 @@ const styles = StyleSheet.create({
     color: BLUE,
     textTransform: 'uppercase',
     letterSpacing: 0.5,
-    marginTop: 12,
+    marginTop: 5,
     marginBottom: 6,
     paddingBottom: 2,
     borderBottomWidth: 1.5,

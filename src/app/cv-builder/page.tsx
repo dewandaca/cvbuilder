@@ -1637,7 +1637,7 @@ export default function CvBuilder() {
                 </div>
                 <h3 className="font-heading font-extrabold text-white text-lg mb-2">Modern + Foto</h3>
                 <p className="text-xs text-slate-400 leading-relaxed mb-6">
-                  Layout modern dengan header dua kolom — foto profil di kiri, nama &amp; kontak di kanan. Judul seksi berwarna biru elegan. Cocok untuk melamar di perusahaan kreatif.
+                  Layout modern dengan header 2 kolom. foto profil di kiri, nama &amp; kontak di kanan. Judul section berwarna biru.
                 </p>
               </div>
               <div className="pt-4 border-t border-white/5 flex items-center justify-between text-xs font-bold text-sky-400 group-hover:text-sky-300 transition-colors">

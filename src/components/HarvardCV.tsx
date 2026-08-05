@@ -200,7 +200,7 @@ const styles = StyleSheet.create({
   // --- HEADER SECTION ---
   header: { 
     textAlign: 'center', 
-    marginBottom: 7
+    marginBottom: 5
   },
   name: { 
     fontSize: 15, 
@@ -223,7 +223,7 @@ const styles = StyleSheet.create({
     fontSize: 11, 
     fontFamily: 'Times-Bold', 
     textTransform: 'uppercase', 
-    marginTop: 12, 
+    marginTop: 5, 
     marginBottom: 6, 
     borderBottomWidth: 1, 
     borderBottomColor: '#000', 
