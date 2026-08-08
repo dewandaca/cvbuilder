@@ -21,7 +21,7 @@ CV Builder AI membantu kamu membuat CV profesional dengan template siap pakai, d
 | Framework | [Next.js 16](https://nextjs.org) + [React 19](https://react.dev) |
 | Bahasa | TypeScript |
 | Styling | Tailwind CSS v4 |
-| AI | [Vercel AI SDK](https://sdk.vercel.ai) + [Groq](https://groq.com) |
+| AI | [Groq SDK](https://groq.com) |
 | PDF | [@react-pdf/renderer](https://react-pdf.org), [unpdf](https://github.com/unjs/unpdf) |
 | DOCX | [mammoth](https://github.com/mwilliamson/mammoth.js) |
 | Icons | [lucide-react](https://lucide.dev) |
