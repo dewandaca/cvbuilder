@@ -125,8 +125,6 @@ export default function CvBuilder() {
         if (data.profilePhoto) {
           setProfilePhoto(data.profilePhoto);
         }
-        // hasSelectedTemplate is intentionally NOT restored from localStorage.
-        // Users should always pick a template when entering the builder page.
       } catch {
         // ignore corrupted data
       }
