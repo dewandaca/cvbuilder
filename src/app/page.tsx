@@ -472,7 +472,7 @@ export default function Home() {
 
             <div className="mt-5 flex items-center gap-2.5 p-3.5 bg-indigo-500/5 border border-indigo-500/15 rounded-xl text-xs text-indigo-300 font-semibold">
               <Sparkles size={16} className="text-brand-primary" />
-              <span>Semua data terisi otomatis dalam waktu kurang dari 5 detik!</span>
+              <span>Semua data terisi otomatis</span>
             </div>
           </div>
 
